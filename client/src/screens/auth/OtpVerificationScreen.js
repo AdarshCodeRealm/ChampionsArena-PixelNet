@@ -9,13 +9,17 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/authService';
 import { colors } from '../../styles/globalStyles';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { AUTH_ROUTES } from '../../config/constants';
 
 const OtpVerificationScreen = ({ route, navigation }) => {
-  const { email, userType } = route.params || {};
+  const { email, userType, isRegistration } = route.params || {};
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(30);
@@ -24,6 +28,14 @@ const OtpVerificationScreen = ({ route, navigation }) => {
   const inputRefs = useRef([]);
 
   useEffect(() => {
+    // Check if we have required data
+    if (!email) {
+      Alert.alert('Error', 'Email is required for verification', [
+        { text: 'OK', onPress: () => navigation.navigate('Login') }
+      ]);
+      return;
+    }
+    
     // Focus first input when screen loads
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
@@ -41,7 +53,7 @@ const OtpVerificationScreen = ({ route, navigation }) => {
     }, 1000);
     
     return () => clearInterval(countdownInterval);
-  }, []);
+  }, [email, navigation]);
 
   const handleOtpChange = (value, index) => {
     // Only accept numbers
@@ -113,97 +125,147 @@ const OtpVerificationScreen = ({ route, navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <LinearGradient
+      colors={['#1e3c72', '#2a5298', '#1e3c72']}
+      style={styles.backgroundGradient}
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>Verify OTP</Text>
-        
-        <Text style={styles.subtitle}>
-          Enter the 6-digit code sent to
-        </Text>
-        <Text style={styles.email}>{email}</Text>
-        
-        <View style={styles.otpContainer}>
-          {otp.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
-              style={styles.otpInput}
-              value={digit}
-              onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)}
-              keyboardType="number-pad"
-              maxLength={1}
-              selectTextOnFocus
-            />
-          ))}
-        </View>
-        
-        <TouchableOpacity 
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleVerifyOtp}
-          disabled={isLoading}
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <KeyboardAvoidingView 
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Verify</Text>
-          )}
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.resendContainer}
-          onPress={handleResendOtp}
-          disabled={resendCountdown > 0 || isLoading}
-        >
-          <Text style={styles.resendText}>
-            {resendCountdown > 0 
-              ? `Resend code in ${resendCountdown}s` 
-              : 'Resend code'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          disabled={isLoading}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.overlay}>
+            <View style={styles.content}>
+              <Ionicons name="lock-closed" size={60} color={colors.primary} style={styles.icon} />
+              
+              <Text style={styles.title}>Verify OTP</Text>
+              
+              <Text style={styles.subtitle}>
+                Enter the 6-digit code sent to
+              </Text>
+              <Text style={styles.email}>{email}</Text>
+              
+              <View style={styles.infoContainer}>
+                <Ionicons name="information-circle-outline" size={18} color="#fff" style={{marginRight: 8}} />
+                <Text style={styles.infoText}>
+                  {isRegistration 
+                    ? "We've sent a verification code to complete your registration"
+                    : "Enter the verification code to access your account"}
+                </Text>
+              </View>
+              
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => (inputRefs.current[index] = ref)}
+                    style={styles.otpInput}
+                    value={digit}
+                    onChangeText={(value) => handleOtpChange(value, index)}
+                    onKeyPress={(e) => handleKeyPress(e, index)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    selectTextOnFocus
+                  />
+                ))}
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.button, isLoading && styles.buttonDisabled]}
+                onPress={handleVerifyOtp}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Verify & Continue</Text>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.resendContainer}
+                onPress={handleResendOtp}
+                disabled={resendCountdown > 0 || isLoading}
+              >
+                <Text style={[styles.resendText, resendCountdown === 0 && styles.resendTextActive]}>
+                  {resendCountdown > 0 
+                    ? `Resend code in ${resendCountdown}s` 
+                    : 'Resend code'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+                disabled={isLoading}
+              >
+                <Ionicons name="arrow-back" size={16} color={colors.text.secondary} style={{marginRight: 5}} />
+                <Text style={styles.backButtonText}>Go Back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </ScrollView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundGradient: {
+    flex: 1,
+    width: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    padding: 20,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  icon: {
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.text.primary,
-    marginBottom: 20,
+    color: '#fff',
+    marginBottom: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.text.secondary,
+    color: '#eee',
     textAlign: 'center',
   },
   email: {
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.primary,
-    marginBottom: 30,
+    marginBottom: 20,
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(13, 132, 195, 0.2)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: '100%',
+  },
+  infoText: {
+    color: '#fff',
+    fontSize: 14,
+    flex: 1,
   },
   otpContainer: {
     flexDirection: 'row',
@@ -215,12 +277,12 @@ const styles = StyleSheet.create({
     width: 45,
     height: 55,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 10,
     textAlign: 'center',
     fontSize: 24,
-    backgroundColor: colors.cardBackground,
-    color: colors.text.primary,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    color: '#fff',
   },
   button: {
     backgroundColor: colors.primary,
@@ -243,17 +305,23 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   resendText: {
-    color: colors.text.secondary,
+    color: '#ddd',
     fontSize: 14,
+  },
+  resendTextActive: {
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   backButton: {
     marginTop: 20,
     padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButtonText: {
-    color: colors.primary,
-    fontSize: 16,
-  },
+    color: '#ddd',
+    fontSize: 14,
+  }
 });
 
 export default OtpVerificationScreen; 

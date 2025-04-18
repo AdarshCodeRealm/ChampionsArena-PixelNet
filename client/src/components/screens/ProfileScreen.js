@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { ScrollView, View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import Header from "../ui/Header";
@@ -20,7 +20,7 @@ const USER_PROFILE = {
 // Menu items
 const MENU_ITEMS = [
   { id: "1", title: "Creator Profile", icon: "person" },
-  { id: "2", title: "Manage Matches", icon: "calendar" },
+  { id: "2", title: "Manage Matches", icon: "calendar", requiresOrganizerApproval: true },
   { id: "3", title: "Manage Communities", icon: "shield" },
   { id: "4", title: "Manage Teams", icon: "people" },
   { id: "5", title: "Giveaways", icon: "gift" },
@@ -34,10 +34,14 @@ const MENU_ITEMS = [
 
 const ProfileScreen = ({ navigation }) => {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { userData, userToken, logout } = useAuth();
   
   const isAuthenticated = !!userToken;
   const isGuestUser = userData?.id === 'guest';
+
+  // Check if user is an approved organizer
+  const isApprovedOrganizer = userData?.userType === 'organizer' && userData?.isApproved === true;
 
   const toggleMenu = () => {
     setMenuVisible(!menuVisible);
@@ -50,8 +54,17 @@ const ProfileScreen = ({ navigation }) => {
       setMenuVisible(false);
       navigation.navigate("Leaderboard");
     } else if (item.title === "Manage Matches") {
-      setMenuVisible(false);
-      navigation.navigate("ManageMatches");
+      // Only navigate if user is an approved organizer
+      if (isApprovedOrganizer) {
+        setMenuVisible(false);
+        navigation.navigate("ManageMatches");
+      } else {
+        Alert.alert(
+          "Access Restricted",
+          "Only approved organizers can manage matches.",
+          [{ text: "OK" }]
+        );
+      }
     } else {
       // Handle other menu items
     }
@@ -62,16 +75,42 @@ const ProfileScreen = ({ navigation }) => {
     navigation.navigate("ManageMatches");
   };
   
-  const handleLoginPress = () => {
+  const handleLoginPress = async () => {
     // For guest users, first logout and then navigate to login
     if (isGuestUser) {
-      logout().then(() => {
-        // Navigate to the Login screen in the root stack
+      try {
+        // Set loading state if needed
+        setIsLoading(true);
+        
+        // Logout the guest user
+        await logout();
+        
+        // Navigate to Login screen
         navigation.navigate('Login');
-      });
+      } catch (error) {
+        console.log('Error logging out guest user:', error);
+        // Still try to navigate to Login even if logout fails
+        navigation.navigate('Login');
+      } finally {
+        // Reset loading state if needed
+        setIsLoading(false);
+      }
     } else {
-      // For non-authenticated users
+      // For non-authenticated users, just navigate to Login
       navigation.navigate('Login');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setIsLoading(true);
+      await logout();
+      // When logged out, menu will be closed automatically
+      // as the userData and userToken will be set to null
+    } catch (error) {
+      console.log('Logout error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,30 +189,42 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {MENU_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={profileStyles.menuItem}
-              onPress={() => handleMenuItemPress(item)}
-            >
-              <View style={profileStyles.menuIconContainer}>
-                <Ionicons name={item.icon} size={20} color="#fff" />
-              </View>
-              <Text style={profileStyles.menuItemText}>{item.title}</Text>
-              {item.isNew && (
-                <View style={profileStyles.newBadge}>
-                  <Text style={profileStyles.newBadgeText}>New</Text>
+          {MENU_ITEMS.map((item) => {
+            // Skip menu items that require organizer approval if user is not an approved organizer
+            if (item.requiresOrganizerApproval && !isApprovedOrganizer) {
+              return null;
+            }
+            
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={profileStyles.menuItem}
+                onPress={() => handleMenuItemPress(item)}
+              >
+                <View style={profileStyles.menuIconContainer}>
+                  <Ionicons name={item.icon} size={20} color="#fff" />
                 </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                <Text style={profileStyles.menuItemText}>{item.title}</Text>
+                {item.isNew && (
+                  <View style={profileStyles.newBadge}>
+                    <Text style={profileStyles.newBadgeText}>New</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
           
           <TouchableOpacity
             style={[profileStyles.menuItem, { marginTop: 20 }]}
-            onPress={logout}
+            onPress={handleLogout}
+            disabled={isLoading}
           >
             <View style={[profileStyles.menuIconContainer, { backgroundColor: colors.status.danger }]}>
-              <Ionicons name="log-out" size={20} color="#fff" />
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="log-out" size={20} color="#fff" />
+              )}
             </View>
             <Text style={profileStyles.menuItemText}>Log Out</Text>
           </TouchableOpacity>

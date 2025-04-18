@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY } from '../config/constants';
+import { API_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY, AUTH_ROUTES } from '../config/constants';
 
 /**
  * Auth Service - Handles authentication related API calls
@@ -21,7 +21,7 @@ class AuthService {
    */
   async registerPlayer(userData) {
     try {
-      const response = await axios.post(`${API_URL}/auth/player/register`, userData);
+      const response = await axios.post(`${API_URL}${AUTH_ROUTES.PLAYER_AUTH}`, userData);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -42,7 +42,7 @@ class AuthService {
    */
   async registerOrganizer(userData) {
     try {
-      const response = await axios.post(`${API_URL}/auth/organizer/register`, userData);
+      const response = await axios.post(`${API_URL}${AUTH_ROUTES.ORGANIZER_AUTH}`, userData);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -54,74 +54,158 @@ class AuthService {
    * 
    * @param {Object} userData - User registration data
    * @param {string} userType - Type of user ('player' or 'organizer')
+   * @param {Object} [profileImage] - User profile image (optional)
    * @returns {Promise<Object>} - Promise with user data or error
    */
-  async register(userData, userType = 'player') {
+  async register(userData, userType = 'player', profileImage = null) {
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, {
-        ...userData,
-        userType
-      });
-      return response.data;
+      // Create FormData for multipart/form-data request if profileImage is provided
+      if (profileImage) {
+        const formData = new FormData();
+        
+        // Add user data to formData
+        Object.keys(userData).forEach(key => {
+          formData.append(key, userData[key]);
+        });
+        
+        // Add user type
+        formData.append('userType', userType);
+        
+        // Add profile image
+        const imageUri = profileImage.uri;
+        const filename = imageUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image';
+        
+        formData.append('profileImage', {
+          uri: imageUri,
+          name: filename,
+          type,
+        });
+        
+        const response = await axios.post(`${API_URL}${AUTH_ROUTES.INITIATE_OTP}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        return response.data;
+      } else {
+        // Regular JSON request without profile image
+        const response = await axios.post(`${API_URL}${AUTH_ROUTES.INITIATE_OTP}`, {
+          ...userData,
+          userType
+        });
+        return response.data;
+      }
     } catch (error) {
       throw this.handleError(error);
     }
   }
 
   /**
-   * Initiate player authentication with OTP
+   * Initiate OTP authentication for players
    * 
-   * @param {Object} userData - Player data
-   * @param {string} userData.email - Player's email (required)
-   * @param {string} [userData.name] - Player's name (required for new users)
-   * @param {string} [userData.username] - Player's username (required for new users)
-   * @param {string} [userData.uid] - Player's FreeFire UID (required for new users)
-   * @param {string} [userData.mobileNumber] - Player's mobile number (optional)
+   * @param {string} email - Player's email
+   * @param {Object} [data] - Optional data for registration (name, mobile, etc.)
+   * @param {Object} [profileImage] - Player's profile image (optional)
    * @returns {Promise<Object>} - Promise with authentication initiation result
    */
-  async initiatePlayerAuth(userData) {
-    try {
-      const response = await axios.post(`${API_URL}/auth/player/initiate-otp-auth`, userData);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
+  async initiatePlayerAuth(email, data = {}, profileImage = null) {
+    const userData = {
+      email,
+      ...data
+    };
+    return this.initiateOtpAuth(userData, 'player', profileImage);
   }
 
   /**
-   * Initiate organizer authentication with OTP
+   * Initiate OTP authentication for organizers
    * 
-   * @param {Object} userData - Organizer data
-   * @param {string} userData.email - Organizer's email (required)
-   * @param {string} [userData.name] - Organizer's name (required for new users)
-   * @param {string} [userData.phoneNumber] - Organizer's phone number (required for new users)
-   * @param {string} [userData.companyName] - Organizer's company name (required for new users)
-   * @param {string} [userData.upiId] - Organizer's UPI ID (required for new users)
+   * @param {string} email - Organizer's email
+   * @param {Object} data - Mandatory data for registration (name, phone, company)
+   * @param {Object} [profileImage] - Organizer's profile image (optional)
    * @returns {Promise<Object>} - Promise with authentication initiation result
    */
-  async initiateOrganizerAuth(userData) {
-    try {
-      const response = await axios.post(`${API_URL}/auth/organizer/initiate-otp-auth`, userData);
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
+  async initiateOrganizerAuth(email, data = {}, profileImage = null) {
+    const userData = {
+      email,
+      ...data
+    };
+    return this.initiateOtpAuth(userData, 'organizer', profileImage);
   }
 
   /**
    * Generic method to initiate OTP-based authentication for any user type
+   * Enhanced to check if a user exists and provide appropriate response for login attempts
    * 
    * @param {Object} userData - User data
    * @param {string} userType - Type of user ('player' or 'organizer')
+   * @param {Object} [profileImage] - User profile image (optional)
    * @returns {Promise<Object>} - Promise with authentication initiation result
    */
-  async initiateOtpAuth(userData, userType = 'player') {
+  async initiateOtpAuth(userData, userType = 'player', profileImage = null) {
     try {
-      const response = await axios.post(`${API_URL}/auth/initiate-otp-auth`, {
-        ...userData,
-        userType
-      });
-      return response.data;
+      // Check if this is a minimal login attempt (only email provided)
+      const isLoginAttempt = Object.keys(userData).length === 1 && userData.email;
+      
+      // Create FormData for multipart/form-data request if profileImage is provided
+      if (profileImage) {
+        const formData = new FormData();
+        
+        // Add user data to formData
+        Object.keys(userData).forEach(key => {
+          formData.append(key, userData[key]);
+        });
+        
+        // Add user type
+        formData.append('userType', userType);
+        
+        // Add profile image
+        const imageUri = profileImage.uri;
+        const filename = imageUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image';
+        
+        formData.append('profileImage', {
+          uri: imageUri,
+          name: filename,
+          type,
+        });
+        
+        const response = await axios.post(`${API_URL}${AUTH_ROUTES.INITIATE_OTP}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        // If user doesn't exist and this was a login attempt, provide appropriate message
+        if (response.data.data && response.data.data.isNewUser && isLoginAttempt) {
+          return {
+            ...response.data,
+            message: "Account not found. Please complete registration.",
+            requiresRegistration: true
+          };
+        }
+        
+        return response.data;
+      } else {
+        // Regular JSON request without profile image
+        const response = await axios.post(`${API_URL}${AUTH_ROUTES.INITIATE_OTP}`, {
+          ...userData,
+          userType
+        });
+        
+        // If user doesn't exist and this was a login attempt, provide appropriate message
+        if (response.data.data && response.data.data.isNewUser && isLoginAttempt) {
+          return {
+            ...response.data,
+            message: "Account not found. Please complete registration.",
+            requiresRegistration: true
+          };
+        }
+        
+        return response.data;
+      }
     } catch (error) {
       throw this.handleError(error);
     }

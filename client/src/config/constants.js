@@ -7,8 +7,28 @@
  * For physical devices, use the actual IP address of your machine on the local network
  */
 
-// For development
-export const API_URL = 'http://10.0.2.2:8000/api/v1';
+// Environment configurations
+const ENV = {
+  DEVELOPMENT: 'development',
+  STAGING: 'staging',
+  PRODUCTION: 'production'
+};
+
+// Current environment
+const CURRENT_ENV = ENV.DEVELOPMENT;
+
+// Base URLs for different environments
+const BASE_URLS = {
+  [ENV.DEVELOPMENT]: 'http://192.168.201.119:8000',
+  [ENV.STAGING]: 'http://staging-api.championsarena.com',
+  [ENV.PRODUCTION]: 'https://api.championsarena.com'
+};
+
+// API version
+const API_VERSION = 'v1';
+
+// Construct the full API URL based on environment
+export const API_URL = `${BASE_URLS[CURRENT_ENV]}/api/${API_VERSION}`;
 
 // Application constants
 export const APP_NAME = 'Champions Arena';
@@ -29,4 +49,32 @@ export const TOKEN_REFRESH_INTERVAL = 1000 * 60 * 15; // 15 minutes
 
 // UI constants
 export const ANIMATION_DURATION = 300; // milliseconds
-export const DEBOUNCE_DELAY = 300; // milliseconds 
+export const DEBOUNCE_DELAY = 300; // milliseconds
+
+// Auth routes
+export const AUTH_ROUTES = {
+  INITIATE_OTP: '/auth/initiate-otp-auth',
+  VERIFY_OTP: '/auth/verify-otp',
+  RESEND_OTP: '/auth/resend-otp',
+  LOGOUT: '/auth/logout',
+  REFRESH_TOKEN: '/auth/refresh-token',
+  PLAYER_AUTH: '/auth/player/initiate-otp-auth',
+  ORGANIZER_AUTH: '/auth/organizer/initiate-otp-auth',
+  PLAYER_CHECK_AUTH: '/auth/player/check-auth',
+  ORGANIZER_CHECK_AUTH: '/auth/organizer/check-auth'
+};
+
+// User routes
+export const USER_ROUTES = {
+  UPLOAD_PROFILE_PICTURE: '/users/upload-profile-picture',
+  PLAYER_PROFILE: '/users/player/profile',
+  ORGANIZER_PROFILE: '/users/organizer/profile',
+  PLAYER_SETTINGS: '/users/player/settings',
+  ORGANIZER_SETTINGS: '/users/organizer/settings'
+};
+
+// Tournament routes
+export const TOURNAMENT_ROUTES = {
+  ALL: '/tournaments',
+  DETAIL: '/tournaments/:id'
+}; 

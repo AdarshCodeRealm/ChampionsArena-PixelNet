@@ -17,9 +17,9 @@ import { useAuth } from '../../contexts/AuthContext';
 
 // Create navigators
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
-const ProfileStack = createStackNavigator();
+const MainStack = createStackNavigator();
 const AuthStack = createStackNavigator();
+const ProfileStack = createStackNavigator();
 
 // Profile Stack
 const ProfileStackScreen = () => (
@@ -107,21 +107,21 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer theme={MyTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <MainStack.Navigator screenOptions={{ headerShown: false }}>
         {userToken ? (
           <>
-            {/* Main app screens */}
-            <Stack.Screen name="Main" component={TabNavigator} />
-            
-            {/* Auth screens available for guest users */}
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+            {/* Main app screen */}
+            <MainStack.Screen name="Main" component={TabNavigator} />
+
+            {/* Auth screens needed for guest users or profile section */}
+            <MainStack.Screen name="Login" component={LoginScreen} />
+            <MainStack.Screen name="Register" component={RegisterScreen} />
+            <MainStack.Screen name="OtpVerification" component={OtpVerificationScreen} />
           </>
         ) : (
-          <Stack.Screen name="Auth" component={AuthStackScreen} />
+          <MainStack.Screen name="Auth" component={AuthStackScreen} />
         )}
-      </Stack.Navigator>
+      </MainStack.Navigator>
     </NavigationContainer>
   );
 };

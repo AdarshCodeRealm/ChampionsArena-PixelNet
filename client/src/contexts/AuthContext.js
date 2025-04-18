@@ -1,9 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-
-// API base URL - replace with your server URL
-const API_URL = 'http://10.0.2.2:8000/api/v1';
+import { API_URL, AUTH_ROUTES } from '../config/constants';
 
 // Create context
 const AuthContext = createContext();
@@ -45,7 +43,7 @@ export const AuthProvider = ({ children }) => {
           
           try {
             // Try to refresh the token
-            const response = await axios.post(`${API_URL}/auth/refresh-token`, {
+            const response = await axios.post(`${API_URL}${AUTH_ROUTES.REFRESH_TOKEN}`, {
               refreshToken,
             });
             
@@ -69,12 +67,12 @@ export const AuthProvider = ({ children }) => {
               return axios(originalRequest);
             } else {
               // If refresh fails, logout
-              logout();
+              await clearAuthData();
               return Promise.reject(error);
             }
           } catch (refreshError) {
             // If refresh fails, logout
-            logout();
+            await clearAuthData();
             return Promise.reject(refreshError);
           }
         }
@@ -82,6 +80,26 @@ export const AuthProvider = ({ children }) => {
         return Promise.reject(error);
       }
     );
+  };
+
+  // Helper function to clear auth data without API call
+  const clearAuthData = async () => {
+    try {
+      // Clear storage
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
+      await AsyncStorage.removeItem('user');
+      
+      // Clear state
+      setUserToken(null);
+      setRefreshToken(null);
+      setUserData(null);
+      
+      return true;
+    } catch (error) {
+      console.log('Clear auth data error:', error);
+      return false;
+    }
   };
 
   const login = async (accessToken, refreshTokenValue, user) => {
@@ -109,22 +127,24 @@ export const AuthProvider = ({ children }) => {
       // Call logout API if userToken exists
       if (userToken) {
         try {
-          await axios.post(`${API_URL}/auth/logout`, {
-            refreshToken,
-          });
+          // Send the token in the Authorization header
+          await axios.post(
+            `${API_URL}${AUTH_ROUTES.LOGOUT}`, 
+            {}, // Empty body
+            {
+              headers: {
+                Authorization: `Bearer ${userToken}`
+              }
+            }
+          );
+          console.log('Logout API call successful');
         } catch (error) {
           console.log('Logout API error:', error);
         }
       }
       
       // Clear storage and state regardless of API call success
-      await AsyncStorage.removeItem('accessToken');
-      await AsyncStorage.removeItem('refreshToken');
-      await AsyncStorage.removeItem('user');
-      
-      setUserToken(null);
-      setRefreshToken(null);
-      setUserData(null);
+      await clearAuthData();
     } catch (error) {
       console.log('Logout error:', error);
     }

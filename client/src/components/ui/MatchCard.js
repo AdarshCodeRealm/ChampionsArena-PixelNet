@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../../styles/globalStyles";
 
-const MatchCard = ({ match, onEdit, onDelete }) => {
+const MatchCard = ({ match, onEdit, onDelete, isEditable = false }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case "upcoming":
@@ -21,14 +21,16 @@ const MatchCard = ({ match, onEdit, onDelete }) => {
     <View style={[styles.matchCard, { backgroundColor: getStatusColor(match.status) }]}>
       <View style={styles.matchCardHeader}>
         <Text style={styles.matchTitle}>{match.title}</Text>
-        <View style={styles.matchActions}>
-          <TouchableOpacity onPress={() => onEdit(match)} style={styles.actionButton}>
-            <Ionicons name="create" size={20} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onDelete(match.id)} style={styles.actionButton}>
-            <Ionicons name="trash" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
+        {isEditable && (
+          <View style={styles.matchActions}>
+            <TouchableOpacity onPress={() => onEdit(match)} style={styles.actionButton}>
+              <Ionicons name="create" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onDelete(match.id)} style={styles.actionButton}>
+              <Ionicons name="trash" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
       <Text style={styles.matchGame}>{match.game}</Text>
       

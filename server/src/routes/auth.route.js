@@ -36,7 +36,9 @@ router.get('/player/check-auth', playerAuthMiddleware, (req, res) => {
         username: req.user.username,
         email: req.user.email,
         uid: req.user.uid,
-        userType: req.user.userType
+        userType: req.user.userType,
+        profilePicture: req.user.profilePicture,
+        isVerified: req.user.isVerified
       }
     }
   });
@@ -53,7 +55,9 @@ router.get('/organizer/check-auth', organizerAuthMiddleware, (req, res) => {
         email: req.user.email,
         companyName: req.user.companyName,
         userType: req.user.userType,
-        isApproved: req.user.isApproved
+        isApproved: req.user.isApproved,
+        profilePicture: req.user.profilePicture,
+        isVerified: req.user.isVerified
       }
     }
   });

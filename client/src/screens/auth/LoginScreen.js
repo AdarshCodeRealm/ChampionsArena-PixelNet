@@ -50,11 +50,29 @@ const LoginScreen = ({ navigation }) => {
       const response = await authService.initiateOtpAuth({ email }, userType);
 
       if (response.success) {
-        // Navigate to OTP verification screen
-        navigation.navigate('OtpVerification', {
-          email,
-          userType,
-        });
+        if (response.requiresRegistration) {
+          // User doesn't exist - needs to register
+          Alert.alert(
+            'Account Not Found',
+            'No account found with this email. Would you like to create a new account?',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel'
+              },
+              {
+                text: 'Register',
+                onPress: () => navigation.navigate('Register', { email, userType })
+              }
+            ]
+          );
+        } else {
+          // Existing user - navigate to OTP verification
+          navigation.navigate('OtpVerification', {
+            email,
+            userType,
+          });
+        }
       } else {
         Alert.alert('Error', response.message || 'Failed to initiate authentication');
       }
@@ -123,6 +141,21 @@ const LoginScreen = ({ navigation }) => {
               
               <Text style={styles.title}>Champions Arena</Text>
               <Text style={styles.subtitle}>Global Gaming Tournament Platform</Text>
+              
+              <View style={styles.authTypeContainer}>
+                <TouchableOpacity 
+                  style={[styles.authTypeTab, styles.authTypeTabActive]}
+                  onPress={() => {}}
+                >
+                  <Text style={[styles.authTypeText, styles.authTypeTextActive]}>Login</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.authTypeTab}
+                  onPress={() => navigation.navigate('Register')}
+                >
+                  <Text style={styles.authTypeText}>Register</Text>
+                </TouchableOpacity>
+              </View>
               
               <View style={styles.missionContainer}>
                 <Text style={styles.missionTitle}>Our Mission</Text>
@@ -297,6 +330,30 @@ const styles = StyleSheet.create({
     color: '#eee',
     marginBottom: 20,
     textAlign: 'center',
+  },
+  authTypeContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 10,
+    marginBottom: 20,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  authTypeTab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  authTypeTabActive: {
+    backgroundColor: colors.primary,
+  },
+  authTypeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  authTypeTextActive: {
+    fontWeight: 'bold',
   },
   missionContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

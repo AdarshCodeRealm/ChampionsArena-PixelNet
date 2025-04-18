@@ -19,8 +19,10 @@ app.use(cookieParser())
 
 import TournamentRoute from "./routes/Tournament.route.js";
 import AuthRoute from "./routes/auth.route.js";
+import UserRoute from "./routes/user.route.js";
 
 app.use("/api/v1/tournaments", TournamentRoute);
 app.use("/api/v1/auth", AuthRoute);
+app.use("/api/v1/users", UserRoute);
 
 export {app}
