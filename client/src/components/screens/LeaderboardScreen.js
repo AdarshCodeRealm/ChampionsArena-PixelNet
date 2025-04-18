@@ -6,6 +6,7 @@ import Header from '../ui/Header';
 import TabBar from '../ui/TabBar';
 import { globalStyles, playerStyles } from '../../styles/globalStyles';
 import { colors } from '../../styles/globalStyles';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Mock data directly in LeaderboardScreen
 const USER_PROFILE = {
@@ -42,6 +43,7 @@ const LEADERBOARD_DATA = {
 };
 
 const LeaderboardScreen = ({ navigation }) => {
+  const { userData } = useAuth();
   const [activeTab, setActiveTab] = useState('solo');
   
   const tabs = [
@@ -61,6 +63,18 @@ const LeaderboardScreen = ({ navigation }) => {
       case 2: return colors.status.bronze;
       default: return colors.primary;
     }
+  };
+  
+  const getProfileData = () => {
+    if (userData) {
+      return userData;
+    }
+    // Fallback for testing only if no userData exists
+    return {
+      name: "John Doe",
+      username: "@johndoe",
+      avatar: "https://via.placeholder.com/80",
+    };
   };
   
   const renderLeaderboardItem = (item, index) => (
@@ -90,8 +104,8 @@ const LeaderboardScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={globalStyles.screen}>
       <Header 
-        title="Champions PixelNet"
-        profile={USER_PROFILE}
+        title="Champions Arena"
+        profile={getProfileData()}
         onProfilePress={() => navigation.navigate('Profile')}
       />
       

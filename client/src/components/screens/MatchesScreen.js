@@ -8,6 +8,7 @@ import SectionHeader from '../ui/SectionHeader';
 import TournamentCard from '../ui/TournamentCard';
 import { globalStyles, tournamentStyles } from '../../styles/globalStyles';
 import { colors } from '../../styles/globalStyles';
+import { useAuth } from '../../contexts/AuthContext';
 
 // API Base URL - replace with your actual server IP when testing
 const API_BASE_URL = 'https://localhost:8000/api/v1'; // Use 10.0.2.2 for Android emulator
@@ -67,20 +68,14 @@ const FALLBACK_ENROLLED_TOURNAMENTS = [
   }
 ];
 
-const USER_PROFILE = {
-  name: "John Doe",
-  username: "@johndoe",
-  avatar: "https://via.placeholder.com/80",
-  rank: "Diamond III",
-  level: 52
-};
-
 const MatchesScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('tournaments');
   const [tournaments, setTournaments] = useState([]);
   const [enrolledTournaments, setEnrolledTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  const { userData } = useAuth();
   
   const tabs = [
     { id: 'tournaments', label: 'TOURNAMENTS' },
@@ -171,13 +166,26 @@ const MatchesScreen = ({ navigation }) => {
     setActiveTab('tournaments');
   };
 
+  // Replace hardcoded user profile with a function to get profile data
+  const getProfileData = () => {
+    if (userData) {
+      return userData;
+    }
+    // Fallback for testing only if no userData exists
+    return {
+      name: "John Doe",
+      username: "@johndoe",
+      avatar: "https://via.placeholder.com/80",
+    };
+  };
+
   // Render loading indicator
   if (loading) {
     return (
       <SafeAreaView style={globalStyles.screen}>
         <Header 
-          title="Champions PixelNet"
-          profile={USER_PROFILE}
+          title="Champions Arena"
+          profile={getProfileData()}
           onProfilePress={() => navigation.navigate('Profile')}
         />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -191,8 +199,8 @@ const MatchesScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={globalStyles.screen}>
       <Header 
-        title="Champions PixelNet"
-        profile={USER_PROFILE}
+        title="Champions Arena"
+        profile={getProfileData()}
         onProfilePress={() => navigation.navigate('Profile')}
       />
       

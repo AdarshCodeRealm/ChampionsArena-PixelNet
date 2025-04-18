@@ -19,6 +19,7 @@ import {
   gameStyles,
   sponsorStyles,
 } from "../../styles/globalStyles";
+import { useAuth } from '../../contexts/AuthContext';
 
 // Mock data directly in HomeScreen
 const GAMES = [
@@ -128,14 +129,6 @@ const USERS = [
   },
 ];
 
-const USER_PROFILE = {
-  name: "John Doe",
-  username: "@johndoe",
-  avatar: "https://via.placeholder.com/80",
-  rank: "Diamond III",
-  level: 52,
-};
-
 const NEWS_ITEMS = [
   {
     id: "1",
@@ -218,12 +211,28 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Add auth context
+  const { userData } = useAuth();
+  
+  // Replace hardcoded user profile with a function to get profile data
+  const getProfileData = () => {
+    if (userData) {
+      return userData;
+    }
+    // Fallback for testing only if no userData exists
+    return {
+      name: "John Doe",
+      username: "@johndoe",
+      avatar: "https://via.placeholder.com/80",
+    };
+  };
+
   return (
     <SafeAreaView style={globalStyles.screen}>
-      <Header
-        title="Champions PixelNet"
-        profile={USER_PROFILE}
-        onProfilePress={() => navigation.navigate("Profile")}
+      <Header 
+        title="Champions Arena"
+        profile={getProfileData()}
+        onProfilePress={() => navigation.navigate('Profile')}
       />
       <ScrollView style={globalStyles.container}>
         {/* Free Fire Carousel - Now First */}

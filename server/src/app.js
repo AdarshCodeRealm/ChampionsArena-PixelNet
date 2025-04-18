@@ -18,7 +18,9 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 import TournamentRoute from "./routes/Tournament.route.js";
+import AuthRoute from "./routes/auth.route.js";
 
-app.use("/api/v1/tournaments",TournamentRoute);
+app.use("/api/v1/tournaments", TournamentRoute);
+app.use("/api/v1/auth", AuthRoute);
 
 export {app}
