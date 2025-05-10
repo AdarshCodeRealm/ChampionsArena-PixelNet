@@ -89,9 +89,10 @@ export const playerAuthMiddleware = async (req, res, next) => {
 // Middleware to check if the user is an organizer
 export const organizerAuthMiddleware = async (req, res, next) => {
   try {
+    console.log("org middle")
     // First use the regular auth middleware
     authMiddleware(req, res, (err) => {
-      if (err) return next(err);
+      if (err) return next(err);s
       
       // Check if user is an organizer
       if (req.user.userType !== 'organizer') {

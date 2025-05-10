@@ -1,8 +1,14 @@
 import mongoose from "mongoose";
+
 const TournamentSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    default: '',
     trim: true
   },
   game: {
@@ -14,17 +20,25 @@ const TournamentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  prizePool: {
+    type: String,
+    required: true
+  },
   date: {
     type: String,
     required: true
   },
   time: {
     type: String,
-    default: null
+    required: true
   },
   registeredTeams: {
     type: Number,
     default: 0
+  },
+  teamSize: {
+    type: Number,
+    required: true
   },
   maxTeams: {
     type: Number,
@@ -36,7 +50,7 @@ const TournamentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['upcoming', 'ongoing', 'completed', 'Confirmed', 'Pending'],
+    enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
     default: 'upcoming'
   },
   format: {
@@ -44,10 +58,41 @@ const TournamentSchema = new mongoose.Schema({
     enum: ['Solo', 'Duo', 'Teams'],
     default: 'Teams'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  organizer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organizer',
+    required: true
+  },
+  organizerName: {
+    type: String,
+    required: true
   }
+}, 
+{
+  timestamps: true // Adds createdAt and updatedAt
 });
+
+// Method to get public tournament data
+TournamentSchema.methods.toPublicJSON = function() {
+  return {
+    id: this._id,
+    title: this.name, // For frontend compatibility
+    description: this.description,
+    game: this.game,
+    date: this.date,
+    time: this.time,
+    prizePool: this.prizePool,
+    teamSize: this.teamSize,
+    maxTeams: this.maxTeams,
+    registeredTeams: this.registeredTeams,
+    bannerImage: this.bannerImage,
+    status: this.status,
+    format: this.format,
+    organizer: this.organizerName,
+    createdBy: this.organizer,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
 
 export default mongoose.model('Tournament', TournamentSchema);

@@ -1,9 +1,35 @@
 import React from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { colors } from "../../styles/globalStyles";
 import { GAMES } from "../../utils/matchUtils";
+import * as ImagePicker from 'expo-image-picker';
+import Ionicons from "react-native-vector-icons/Ionicons";
 
-const MatchForm = ({ formData, setFormData }) => {
+const MatchForm = ({ formData, setFormData, bannerImage, setBannerImage }) => {
+  
+  const pickImage = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      alert('Sorry, we need camera roll permissions to upload a banner image.');
+      return;
+    }
+    
+    // Launch image picker
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      // Set the selected image
+      setBannerImage(result.assets[0]);
+    }
+  };
+  
   return (
     <>
       <View style={styles.formGroup}>
@@ -29,6 +55,29 @@ const MatchForm = ({ formData, setFormData }) => {
           numberOfLines={4}
           textAlignVertical="top"
         />
+      </View>
+      
+      <View style={styles.formGroup}>
+        <Text style={styles.formLabel}>Banner Image</Text>
+        <TouchableOpacity 
+          style={styles.bannerUploadContainer}
+          onPress={pickImage}
+        >
+          {bannerImage ? (
+            <Image 
+              source={{ uri: bannerImage.uri }} 
+              style={styles.bannerImage} 
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.bannerPlaceholder}>
+              <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.6)" />
+              <Text style={styles.bannerPlaceholderText}>
+                Tap to upload a banner image
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
       
       <View style={styles.formGroup}>
@@ -146,6 +195,30 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     paddingTop: 14,
+  },
+  bannerUploadContainer: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerPlaceholderText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 8,
+    fontSize: 14,
   },
   selectContainer: {
     flexDirection: "row",

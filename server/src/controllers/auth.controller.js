@@ -1,31 +1,27 @@
 import authService from '../services/auth.service.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { Player } from '../models/player.model.js';
+import { Organizer } from '../models/organizer.model.js';
+import { generateOTP, sendOTP } from '../utils/otpUtils.js';
+import jwt from 'jsonwebtoken';
 
-/**
- * Register a new user (player or organizer)
- * @route POST /api/v1/auth/register
- */
 export const register = async (req, res, next) => {
   try {
     const { userType, ...userData } = req.body;
 
-    // Validate user type
     if (userType && !['player', 'organizer'].includes(userType)) {
       return res.status(400).json(
         new ApiResponse(400, null, "Invalid user type. Must be 'player' or 'organizer'")
       );
     }
 
-    // Validate required fields based on user type
     if (userType === 'player' || !userType) {
-      // Player validation
       if (!userData.name || !userData.username || !userData.uid || !userData.email || !userData.password) {
         return res.status(400).json(
           new ApiResponse(400, null, "All fields are required for player registration (name, username, uid, email, password)")
         );
       }
     } else if (userType === 'organizer') {
-      // Organizer validation
       if (!userData.name || !userData.email || !userData.phoneNumber || !userData.companyName || !userData.upiId || !userData.password) {
         return res.status(400).json(
           new ApiResponse(400, null, "All fields are required for organizer registration (name, email, phoneNumber, companyName, upiId, password)")
@@ -33,7 +29,6 @@ export const register = async (req, res, next) => {
       }
     }
     
-    // Register the user using auth service
     const result = await authService.register(userData, userType || 'player');
     
     return res.status(201).json(
@@ -52,181 +47,200 @@ export const register = async (req, res, next) => {
   }
 };
 
-/**
- * Initiate OTP-based authentication (login or registration)
- * @route POST /api/v1/auth/initiate-otp-auth
- */
-export const initiateOtpAuth = async (req, res, next) => {
-  try {
-    const { userType, ...userData } = req.body;
-
-    // Validate user type
-    if (userType && !['player', 'organizer'].includes(userType)) {
-      return res.status(400).json(
-        new ApiResponse(400, null, "Invalid user type. Must be 'player' or 'organizer'")
-      );
-    }
-    
-    // Initiate OTP authentication
-    const result = await authService.initiateOtpAuth(userData, userType || 'player');
-    
-    return res.status(200).json(
-      new ApiResponse(200, 
-        { 
-          email: result.email, 
-          userType: result.userType,
-          isNewUser: result.isNewUser
-        }, 
-        result.message
-      )
-    );
-    
-  } catch (error) {
-    console.error("OTP Authentication initiation error:", error);
-    
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Something went wrong during authentication initiation";
-    
-    return res.status(statusCode).json(
-      new ApiResponse(statusCode, null, message)
-    );
-  }
-};
-
-/**
- * Verify OTP and complete authentication
- * @route POST /api/v1/auth/verify-otp
- */
-export const verifyOtp = async (req, res, next) => {
-  try {
-    const { email, otp, userType } = req.body;
-    
-    if (!email || !otp) {
-      return res.status(400).json(
-        new ApiResponse(400, null, "Email and OTP are required")
-      );
-    }
-    
-    const result = await authService.verifyOtpAndAuthenticate(email, otp, userType || 'player');
-    
-    return res.status(200).json(
-      new ApiResponse(200, result, "Authentication successful")
-    );
-    
-  } catch (error) {
-    console.error("OTP verification error:", error);
-    
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Something went wrong during OTP verification";
-    
-    return res.status(statusCode).json(
-      new ApiResponse(statusCode, null, message)
-    );
-  }
-};
-
-/**
- * Resend OTP to user
- * @route POST /api/v1/auth/resend-otp
- */
-export const resendOTP = async (req, res, next) => {
+export const initiateOtpAuth = async (req, res) => {
   try {
     const { email, userType } = req.body;
-    
-    if (!email) {
-      return res.status(400).json(
-        new ApiResponse(400, null, "Email is required")
-      );
+
+    // Validate user type
+    if (!['player', 'organizer'].includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user type'
+      });
     }
-    
-    const result = await authService.resendOTP(email, userType || 'player');
-    
-    return res.status(200).json(
-      new ApiResponse(200, { email: result.email }, result.message)
-    );
-    
+
+    // Generate and send OTP
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
+
+    // Store OTP in database based on user type
+    if (userType === 'player') {
+      let player = await Player.findOne({ email });
+      if (!player) {
+        player = new Player({ email, otp, otpExpiry });
+      } else {
+        player.otp = otp;
+        player.otpExpiry = otpExpiry;
+      }
+      await player.save();
+    } else {
+      let organizer = await Organizer.findOne({ email });
+      if (!organizer) {
+        organizer = new Organizer({ email, otp, otpExpiry });
+      } else {
+        organizer.otp = otp;
+        organizer.otpExpiry = otpExpiry;
+      }
+      await organizer.save();
+    }
+
+    // Send OTP to email
+    await sendOTP(email, otp);
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent successfully',
+      email
+    });
   } catch (error) {
-    console.error("Resend OTP error:", error);
-    
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Something went wrong while resending OTP";
-    
-    return res.status(statusCode).json(
-      new ApiResponse(statusCode, null, message)
-    );
+    res.status(500).json({
+      success: false,
+      message: 'Error sending OTP',
+      error: error.message
+    });
   }
 };
 
-/**
- * Login user
- * @route POST /api/v1/auth/login
- */
-export const login = async (req, res, next) => {
+export const verifyOtp = async (req, res) => {
   try {
-    const { email, password, userType } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json(
-        new ApiResponse(400, null, "Email and password are required")
-      );
+    const { email, otp, userType, name, companyName } = req.body;
+
+    // Find user based on type
+    let user;
+    if (userType === 'player') {
+      user = await Player.findOne({ email });
+    } else {
+      user = await Organizer.findOne({ email });
     }
-    
-    const result = await authService.login({ email, password }, userType || 'player');
-    
-    return res.status(200).json(
-      new ApiResponse(200, result, "Logged in successfully")
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify OTP
+    if (user.otp !== otp || new Date() > user.otpExpiry) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Clear OTP
+    user.otp = null;
+    user.otpExpiry = null;
+
+    // If new user, update profile
+    if (!user.isVerified) {
+      if (userType === 'player') {
+        user.name = name;
+      } else {
+        user.name = name;
+        user.companyName = companyName;
+      }
+      user.isVerified = true;
+    }
+
+    await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        _id: user._id,
+        email: user.email,
+        userType,
+        isVerified: user.isVerified
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
-    
+
+    // Set session cookie for web clients
+    res.cookie('session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    // Send response
+    res.status(200).json({
+      success: true,
+      message: 'Authentication successful',
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        userType,
+        isVerified: user.isVerified,
+        ...(userType === 'organizer' && { isApproved: user.isApproved })
+      }
+    });
   } catch (error) {
-    console.error("Login error:", error);
-    
-    // Special case for unauthorized but with data (like account not verified)
-    if (error.statusCode === 403 && error.data) {
-      return res.status(403).json(
-        new ApiResponse(403, error.data, error.message)
-      );
-    }
-    
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Something went wrong during login";
-    
-    return res.status(statusCode).json(
-      new ApiResponse(statusCode, null, message)
-    );
+    res.status(500).json({
+      success: false,
+      message: 'Error verifying OTP',
+      error: error.message
+    });
   }
 };
 
-/**
- * Logout user
- * @route POST /api/v1/auth/logout
- */
-export const logout = async (req, res, next) => {
+export const resendOTP = async (req, res) => {
   try {
-    // Get user from middleware
-    const { _id, userType } = req.user;
-    
-    await authService.logout(_id, userType || 'player');
-    
-    return res.status(200).json(
-      new ApiResponse(200, {}, "Logged out successfully")
-    );
-    
+    const { email, userType } = req.body;
+
+    // Find user
+    let user;
+    if (userType === 'player') {
+      user = await Player.findOne({ email });
+    } else {
+      user = await Organizer.findOne({ email });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+    // Update user's OTP
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
+
+    // Send new OTP
+    await sendOTP(email, otp);
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP resent successfully',
+      email
+    });
   } catch (error) {
-    console.error("Logout error:", error);
-    
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Something went wrong during logout";
-    
-    return res.status(statusCode).json(
-      new ApiResponse(statusCode, null, message)
-    );
+    res.status(500).json({
+      success: false,
+      message: 'Error resending OTP',
+      error: error.message
+    });
   }
 };
 
-/**
- * Refresh access token
- * @route POST /api/v1/auth/refresh-token
- */
+export const logout = (req, res) => {
+  res.clearCookie('session');
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+};
+
 export const refreshToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
@@ -254,3 +268,36 @@ export const refreshToken = async (req, res, next) => {
     );
   }
 }; 
+
+/**
+ * Login existing user with OTP verification
+ * @route POST /api/v1/auth/login-with-otp
+ */
+export const loginWithOtp = async (req, res, next) => {
+  try {
+    const { email, otp, userType = 'player' } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json(
+        new ApiResponse(400, null, "Email and OTP are required")
+      );
+    }
+
+    const loginResult = await authService.verifyOtpAndLogin(email, otp, userType);
+
+    return res.status(200).json(
+      new ApiResponse(200, loginResult, "Logged in successfully")
+    );
+
+  } catch (error) {
+    console.error("Login error:", error);
+    
+    const statusCode = error.statusCode || 500;
+    const message = error.message || "Something went wrong during login";
+    
+    return res.status(statusCode).json(
+      new ApiResponse(statusCode, null, message)
+    );
+  }
+};
+

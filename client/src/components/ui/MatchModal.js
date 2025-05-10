@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   View, 
   Text, 
@@ -21,8 +21,31 @@ const MatchModal = ({
   formData, 
   setFormData, 
   onSubmit, 
-  isEditMode = false 
+  isEditMode = false,
+  initialBannerImage = null
 }) => {
+  const [bannerImage, setBannerImage] = useState(null);
+
+  // Reset banner image when modal is closed
+  useEffect(() => {
+    if (!visible) {
+      // Only reset if we're not in edit mode or there's no initial banner
+      if (!isEditMode || !initialBannerImage) {
+        setBannerImage(null);
+      }
+    } else {
+      // Set initial banner image when opening in edit mode
+      if (isEditMode && initialBannerImage) {
+        setBannerImage(initialBannerImage);
+      }
+    }
+  }, [visible, isEditMode, initialBannerImage]);
+
+  const handleSubmit = () => {
+    // Call onSubmit handler with both formData and bannerImage
+    onSubmit(formData, bannerImage);
+  };
+
   return (
     <Modal
       animationType="slide"
@@ -47,7 +70,12 @@ const MatchModal = ({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <MatchForm formData={formData} setFormData={setFormData} />
+            <MatchForm 
+              formData={formData} 
+              setFormData={setFormData}
+              bannerImage={bannerImage}
+              setBannerImage={setBannerImage}
+            />
           </ScrollView>
           
           <View style={styles.modalActions}>
@@ -60,7 +88,7 @@ const MatchModal = ({
             
             <TouchableOpacity 
               style={[styles.modalButton, isEditMode ? styles.updateButton : styles.createButton]}
-              onPress={onSubmit}
+              onPress={handleSubmit}
             >
               <Text style={styles.modalButtonText}>
                 {isEditMode ? "Update Match" : "Create Match"}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import Header from "../ui/Header";
@@ -8,14 +8,11 @@ import MatchCard from "../ui/MatchCard";
 import MatchModal from "../ui/MatchModal";
 import { globalStyles, colors } from "../../styles/globalStyles";
 import { 
-  INITIAL_MATCHES, 
   DEFAULT_FORM_DATA, 
-  validateMatchForm, 
-  createMatchObject 
+  validateMatchForm
 } from "../../utils/matchUtils";
 import { useAuth } from "../../contexts/AuthContext";
-import axios from 'axios';
-import { API_URL } from '../../config/constants';
+import tournamentService from "../../services/tournamentService";
 
 const ManageMatchesScreen = ({ navigation }) => {
   const { userData, userToken } = useAuth();
@@ -23,10 +20,19 @@ const ManageMatchesScreen = ({ navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(null);
+  const [currentBannerImage, setCurrentBannerImage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
+
+  // Set the auth token for API requests
+  useEffect(() => {
+    if (userToken) {
+      tournamentService.setAuthToken(userToken);
+    }
+  }, [userToken]);
 
   // Check if user is authorized to access this screen
   useEffect(() => {
@@ -48,36 +54,26 @@ const ManageMatchesScreen = ({ navigation }) => {
       return;
     }
 
-    // Fetch organizer's matches
-    fetchOrganizerMatches();
+    // Fetch matches data
+    fetchMatches();
   }, [userData]);
 
-  const fetchOrganizerMatches = async () => {
+  const fetchMatches = async () => {
     setIsLoading(true);
     try {
-      // In a real implementation, this would be an API call to get the organizer's matches
-      // For now, we'll use the INITIAL_MATCHES and filter them to simulate the organizer's matches
+      // Get all tournaments sorted by newest first
+      const allTournamentsData = await tournamentService.getAllTournaments({
+        sort: 'updatedAt',
+        order: 'desc'
+      });
       
-      // Example API call:
-      // const response = await axios.get(`${API_URL}/api/v1/tournaments/organizer`, {
-      //   headers: { Authorization: `Bearer ${userToken}` }
-      // });
-      // setMatches(response.data.data);
-      
-      // Simulate API call with a delay
-      setTimeout(() => {
-        // Filter matches to only include those created by this organizer
-        // In a real implementation, the API would only return matches for the current organizer
-        const organizerMatches = INITIAL_MATCHES.map(match => ({
-          ...match,
-          createdBy: match.id % 2 === 0 ? userData?._id : 'another-organizer-id' // Simulated ownership
-        }));
-        setMatches(organizerMatches);
-        setIsLoading(false);
-      }, 1000);
+      if (allTournamentsData && allTournamentsData.data) {
+        setMatches(allTournamentsData.data);
+      }
     } catch (error) {
-      console.error("Error fetching matches:", error);
-      Alert.alert("Error", "Failed to load matches. Please try again.");
+      console.error("Error fetching tournaments:", error);
+      Alert.alert("Error", error.message || "Failed to load tournaments.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -86,109 +82,89 @@ const ManageMatchesScreen = ({ navigation }) => {
     setFormData(DEFAULT_FORM_DATA);
   };
 
-  const handleCreateMatch = async () => {
+  const handleCreateMatch = async (formData, bannerImage) => {
     // Validate form
     if (!validateMatchForm(formData)) {
-      Alert.alert("Error", "Please fill all the fields");
+      Alert.alert("Error", "Please fill all required fields");
       return;
     }
-
+    
+    setIsSubmitting(true);
     try {
-      // In a real implementation, this would be an API call to create a match
-      // Example:
-      // const response = await axios.post(`${API_URL}/api/v1/tournaments`, {
-      //   ...formData,
-      //   organizerId: userData._id
-      // }, {
-      //   headers: { Authorization: `Bearer ${userToken}` }
-      // });
+      // Convert banner image to upload format if provided
+      const imageFile = bannerImage ? {
+        uri: bannerImage.uri,
+        type: bannerImage.type || 'image/jpeg',
+        name: bannerImage.fileName || 'tournament_banner.jpg'
+      } : null;
       
-      // Simulate API call with a delay
-      setTimeout(() => {
-        const newMatch = createMatchObject(formData);
-        // Add the organizer's ID to the match
-        newMatch.createdBy = userData?._id;
-        setMatches([...matches, newMatch]);
+      // Create tournament via API
+      const newTournament = await tournamentService.createTournament(formData, imageFile);
+      console.log("match hadle create click")
+      
+      // Update matches list with new tournament
+      if (newTournament) {
+        setMatches(prev => [newTournament, ...prev]);
         setModalVisible(false);
         resetFormData();
-        
-        Alert.alert("Success", "Match created successfully!");
-      }, 500);
+        Alert.alert("Success", "Tournament created successfully!");
+      }
     } catch (error) {
-      console.error("Error creating match:", error);
-      Alert.alert("Error", "Failed to create match. Please try again.");
+      console.error("Error creating tournament:", error);
+      Alert.alert("Error", error.message || "Failed to create tournament. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleUpdateMatch = async () => {
+  const handleUpdateMatch = async (formData, bannerImage) => {
     if (!currentMatch) return;
 
     // Validate form
     if (!validateMatchForm(formData)) {
-      Alert.alert("Error", "Please fill all the fields");
+      Alert.alert("Error", "Please fill all required fields");
       return;
     }
 
-    // Ensure organizer can only update their own matches
-    if (currentMatch.createdBy !== userData?._id) {
-      Alert.alert("Error", "You can only update matches that you created.");
-      return;
-    }
-
+    setIsSubmitting(true);
     try {
-      // In a real implementation, this would be an API call to update a match
-      // Example:
-      // const response = await axios.put(`${API_URL}/api/v1/tournaments/${currentMatch.id}`, {
-      //   ...formData
-      // }, {
-      //   headers: { Authorization: `Bearer ${userToken}` }
-      // });
+      // Convert banner image to upload format if provided
+      const imageFile = bannerImage && bannerImage.uri !== currentMatch.bannerImage ? {
+        uri: bannerImage.uri,
+        type: bannerImage.type || 'image/jpeg',
+        name: bannerImage.fileName || 'tournament_banner.jpg'
+      } : null;
       
-      // Simulate API call with a delay
-      setTimeout(() => {
-        const updatedMatches = matches.map(match => {
-          if (match.id === currentMatch.id) {
-            return {
-              ...match,
-              title: formData.title,
-              description: formData.description || "",
-              game: formData.game,
-              date: formData.date,
-              time: formData.time,
-              prizePool: formData.prizePool,
-              teamSize: parseInt(formData.teamSize),
-              maxTeams: parseInt(formData.maxTeams),
-            };
-          }
-          return match;
-        });
-
-        setMatches(updatedMatches);
+      // Update tournament via API
+      const updatedTournament = await tournamentService.updateTournament(
+        currentMatch.id, 
+        formData, 
+        imageFile
+      );
+      
+      // Update matches list with updated tournament
+      if (updatedTournament) {
+        setMatches(prev => prev.map(match => 
+          match.id === updatedTournament.id ? updatedTournament : match
+        ));
         setEditModalVisible(false);
         setCurrentMatch(null);
+        setCurrentBannerImage(null);
         resetFormData();
-        
-        Alert.alert("Success", "Match updated successfully!");
-      }, 500);
+        Alert.alert("Success", "Tournament updated successfully!");
+      }
     } catch (error) {
-      console.error("Error updating match:", error);
-      Alert.alert("Error", "Failed to update match. Please try again.");
+      console.error("Error updating tournament:", error);
+      Alert.alert("Error", error.message || "Failed to update tournament. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDeleteMatch = async (id) => {
-    // Find the match to delete
-    const matchToDelete = matches.find(match => match.id === id);
-    
-    // Ensure organizer can only delete their own matches
-    if (matchToDelete && matchToDelete.createdBy !== userData?._id) {
-      Alert.alert("Error", "You can only delete matches that you created.");
-      return;
-    }
-
     Alert.alert(
-      "Delete Match",
-      "Are you sure you want to delete this match?",
+      "Delete Tournament",
+      "Are you sure you want to delete this tournament? This action cannot be undone.",
       [
         {
           text: "Cancel",
@@ -197,22 +173,21 @@ const ManageMatchesScreen = ({ navigation }) => {
         {
           text: "Delete",
           onPress: async () => {
+            setIsLoading(true);
             try {
-              // In a real implementation, this would be an API call to delete a match
-              // Example:
-              // await axios.delete(`${API_URL}/api/v1/tournaments/${id}`, {
-              //   headers: { Authorization: `Bearer ${userToken}` }
-              // });
+              // Delete tournament via API
+              const success = await tournamentService.deleteTournament(id);
               
-              // Simulate API call with a delay
-              setTimeout(() => {
-                const filteredMatches = matches.filter(match => match.id !== id);
-                setMatches(filteredMatches);
-                Alert.alert("Success", "Match deleted successfully!");
-              }, 500);
+              if (success) {
+                // Remove tournament from list
+                setMatches(prev => prev.filter(match => match.id !== id));
+                Alert.alert("Success", "Tournament deleted successfully!");
+              }
             } catch (error) {
-              console.error("Error deleting match:", error);
-              Alert.alert("Error", "Failed to delete match. Please try again.");
+              console.error("Error deleting tournament:", error);
+              Alert.alert("Error", error.message || "Failed to delete tournament. Please try again.");
+            } finally {
+              setIsLoading(false);
             }
           },
           style: "destructive",
@@ -224,11 +199,13 @@ const ManageMatchesScreen = ({ navigation }) => {
   const openEditModal = (match) => {
     // Ensure organizer can only edit their own matches
     if (match.createdBy !== userData?._id) {
-      Alert.alert("Error", "You can only edit matches that you created.");
+      Alert.alert("Error", "You can only edit tournaments you created.");
       return;
     }
 
     setCurrentMatch(match);
+    
+    // Prepare form data from match
     setFormData({
       title: match.title,
       description: match.description || "",
@@ -239,6 +216,16 @@ const ManageMatchesScreen = ({ navigation }) => {
       teamSize: match.teamSize.toString(),
       maxTeams: match.maxTeams.toString(),
     });
+    
+    // Prepare banner image for edit if one exists
+    if (match.bannerImage) {
+      setCurrentBannerImage({
+        uri: match.bannerImage,
+        type: 'image/jpeg',
+        fileName: 'current_banner.jpg'
+      });
+    }
+    
     setEditModalVisible(true);
   };
 
@@ -252,7 +239,8 @@ const ManageMatchesScreen = ({ navigation }) => {
       <SafeAreaView style={globalStyles.screen}>
         <Header title="Manage Matches" onBackPress={() => navigation.goBack()} />
         <View style={[globalStyles.container, styles.loadingContainer]}>
-          <Text style={styles.loadingText}>Loading matches...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading tournaments...</Text>
         </View>
       </SafeAreaView>
     );
@@ -270,13 +258,14 @@ const ManageMatchesScreen = ({ navigation }) => {
               resetFormData();
               setModalVisible(true);
             }}
+            disabled={isSubmitting}
           >
             <Ionicons name="add-circle" size={18} color="#fff" />
-            <Text style={styles.createButtonText}>Create New Match</Text>
+            <Text style={styles.createButtonText}>Create New Tournament</Text>
           </TouchableOpacity>
         </View>
 
-        <SectionHeader title="My Matches" />
+        <SectionHeader title="My Tournaments" />
         {matches
           .filter(match => isOwnedByCurrentOrganizer(match))
           .map(match => (
@@ -289,8 +278,13 @@ const ManageMatchesScreen = ({ navigation }) => {
             />
           ))
         }
+        {matches.filter(match => isOwnedByCurrentOrganizer(match)).length === 0 && (
+          <Text style={styles.emptyListText}>
+            You haven't created any tournaments yet. Click the button above to create your first tournament.
+          </Text>
+        )}
 
-        <SectionHeader title="Other Organizers' Matches" />
+        <SectionHeader title="Other Organizers' Tournaments" />
         {matches
           .filter(match => !isOwnedByCurrentOrganizer(match))
           .map(match => (
@@ -301,6 +295,11 @@ const ManageMatchesScreen = ({ navigation }) => {
             />
           ))
         }
+        {matches.filter(match => !isOwnedByCurrentOrganizer(match)).length === 0 && (
+          <Text style={styles.emptyListText}>
+            No tournaments from other organizers found.
+          </Text>
+        )}
       </ScrollView>
 
       {/* Create Match Modal */}
@@ -321,6 +320,7 @@ const ManageMatchesScreen = ({ navigation }) => {
         setFormData={setFormData}
         onSubmit={handleUpdateMatch}
         isEditMode={true}
+        initialBannerImage={currentBannerImage}
       />
     </SafeAreaView>
   );
@@ -353,6 +353,13 @@ const styles = StyleSheet.create({
   loadingText: {
     color: colors.text.primary,
     fontSize: 16,
+    marginTop: 15,
+  },
+  emptyListText: {
+    color: colors.text.secondary,
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   }
 });
 

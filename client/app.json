@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Hello World App",
-    "slug": "hello-world-app",
+    "name": "Champions Arena",
+    "slug": "champions-arena",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -14,7 +14,14 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.adarshcoderealm.championsarena"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0dd24d03-48fc-470c-bcf2-a047580806df"
       }
-    }
+    },
+    "owner": "adarshcoderealm"
   }
-} 
+}
