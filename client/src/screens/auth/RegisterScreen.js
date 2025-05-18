@@ -20,41 +20,55 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 
 const RegisterScreen = ({ route, navigation }) => {
-  // Get user data from navigation params if coming from OTP verification or Login screen
-  const { email: routeEmail, userType: routeUserType, isOtpVerified } = route.params || {};
+  // Get email from navigation params if redirected from login screen
+  const { email: routeEmail } = route.params || {};
   
+  // State for multi-step registration
+  const [registrationStep, setRegistrationStep] = useState(1); // 1: Email input, 2: OTP verification, 3: Complete profile
+  const [isLoading, setIsLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpResendTimer, setOtpResendTimer] = useState(0);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
+  
+  // Form data state
   const [formData, setFormData] = useState({
-    name: '',
     email: routeEmail || '',
-    userType: routeUserType || 'player',
-    // Player specific fields
+    name: '',
     username: '',
-    uid: '',
+    password: '',
+    confirmPassword: '',
+    uid: '', // FreeFire UID
     mobileNumber: '',
-    // Organizer specific fields
-    phoneNumber: '',
-    companyName: '',
-    upiId: '',
+    otp: '',
   });
   
   const [profileImage, setProfileImage] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [policyAccepted, setPolicyAccepted] = useState(false);
-  const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // OTP resend timer countdown
   useEffect(() => {
-    // This screen can now be accessed either from OTP verification or from Login (for non-existing users)
-    // So we don't want to immediately redirect to login in all cases
-    if (isOtpVerified === false && !routeEmail) {
-      navigation.replace('Login');
+    let interval;
+    if (otpResendTimer > 0) {
+      interval = setInterval(() => {
+        setOtpResendTimer((timer) => timer - 1);
+      }, 1000);
     }
-  }, [isOtpVerified, navigation, routeEmail]);
+    return () => clearInterval(interval);
+  }, [otpResendTimer]);
 
+  // Update form field helper
   const updateFormField = (field, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Email validation
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
   };
 
   // Handle profile image picking
@@ -84,110 +98,184 @@ const RegisterScreen = ({ route, navigation }) => {
     }
   };
 
-  const validateForm = () => {
-    // Email validation
+  // Step 1: Email input and request OTP
+  const handleSendOtp = async () => {
+    // Validate email
     if (!formData.email || !formData.email.trim()) {
       Alert.alert('Missing Information', 'Please enter your email');
-      return false;
+      return;
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!validateEmail(formData.email)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address');
-      return false;
+      return;
     }
-    
-    // Common validation
+
+    if (!policyAccepted) {
+      Alert.alert('Terms & Privacy Policy', 'Please accept our Terms of Service and Privacy Policy to continue');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Initiate OTP auth with just the email for player registration
+      const response = await authService.initiateOtpAuth({ email: formData.email }, 'player');
+      
+      if (response.success) {
+        setOtpSent(true);
+        setRegistrationStep(2);
+        setOtpResendTimer(30); // 30-second cooldown for resend
+        Alert.alert('OTP Sent', 'A verification code has been sent to your email.');
+      } else {
+        Alert.alert('Failed', response.message || 'Failed to send verification code.');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP and proceed
+  const handleVerifyOtp = async () => {
+    if (!formData.otp || formData.otp.trim().length !== 6) {
+      Alert.alert('Invalid OTP', 'Please enter a valid 6-digit verification code');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // This will only verify the OTP, not complete the registration yet
+      // We're adapting the existing verifyOtp method but not saving the auth state
+      // since the user hasn't completed their registration
+      const response = await authService.verifyOtp(
+        formData.email,
+        formData.otp,
+        'player',
+        false // Don't remember me yet since registration is incomplete
+      );
+
+      if (response.success) {
+        // OTP is verified, move to complete profile step
+        setRegistrationStep(3);
+      } else {
+        Alert.alert('Verification Failed', response.message || 'Invalid verification code.');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to verify your code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (otpResendTimer > 0) return;
+
+    setIsLoading(true);
+    try {
+      const response = await authService.resendOtp(formData.email, 'player');
+      
+      if (response.success) {
+        setOtpResendTimer(30); // Reset cooldown timer
+        Alert.alert('OTP Resent', 'A new verification code has been sent to your email.');
+      } else {
+        Alert.alert('Failed', response.message || 'Failed to resend verification code.');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 3: Complete registration with profile details
+  const handleCompleteRegistration = async () => {
+    // Validate required fields
     if (!formData.name.trim()) {
       Alert.alert('Missing Information', 'Please enter your name');
-      return false;
+      return;
     }
 
     if (!formData.username.trim()) {
       Alert.alert('Missing Information', 'Please enter a username');
-      return false;
+      return;
+    }
+    
+    // Password validation
+    if (!formData.password.trim()) {
+      Alert.alert('Missing Information', 'Please enter a password');
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters long');
+      return;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Password Mismatch', 'Passwords do not match');
+      return;
     }
 
-    // Terms acceptance
-    if (!policyAccepted) {
-      Alert.alert('Terms & Privacy Policy', 'Please accept our Terms of Service and Privacy Policy to continue');
-      return false;
+    // FreeFire UID validation
+    if (!formData.uid.trim()) {
+      Alert.alert('Missing Information', 'Please enter your FreeFire UID');
+      return;
     }
-
-    // User type specific validation
-    if (formData.userType === 'player') {
-      if (!formData.uid.trim()) {
-        Alert.alert('Missing Information', 'Please enter your FreeFire UID');
-        return false;
-      }
-    } else if (formData.userType === 'organizer') {
-      if (!formData.phoneNumber.trim()) {
-        Alert.alert('Missing Information', 'Please enter your phone number');
-        return false;
-      }
-      if (!formData.companyName.trim()) {
-        Alert.alert('Missing Information', 'Please enter your company name');
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  const handleRegister = async () => {
-    if (!validateForm()) return;
 
     setIsLoading(true);
-
     try {
-      let userData = {
+      const userData = {
         email: formData.email,
         name: formData.name,
         username: formData.username,
-        profilePicture: profileImage, // Include profile picture
+        password: formData.password,
+        uid: formData.uid,
+        mobileNumber: formData.mobileNumber || undefined,
+        otp: formData.otp, // Include the OTP for final verification
+        isOtpVerified: true
       };
-      
-      // Add user type specific fields
-      if (formData.userType === 'player') {
-        userData = {
-          ...userData,
-          uid: formData.uid,
-          mobileNumber: formData.mobileNumber || undefined,
-        };
-      } else {
-        userData = {
-          ...userData,
-          phoneNumber: formData.phoneNumber,
-          companyName: formData.companyName,
-          upiId: formData.upiId || undefined,
-        };
-      }
-      
-      // Initiate the OTP authentication process
-      const response = await authService.initiateOtpAuth(userData, formData.userType);
+
+      // Register the player with complete details
+      const response = await authService.registerPlayer(userData);
 
       if (response.success) {
-        // Navigate to OTP verification
-        navigation.navigate('OtpVerification', {
-          email: formData.email,
-          userType: formData.userType,
-          isRegistration: true,
-        });
+        // If profile image exists, upload it
+        if (profileImage) {
+          try {
+            // Upload profile image logic would go here
+            // This might involve an API call to update the user's profile picture
+          } catch (imageError) {
+            console.error('Failed to upload profile image:', imageError);
+            // Continue with login even if image upload fails
+          }
+        }
+
+        Alert.alert(
+          'Registration Successful',
+          'Your account has been created successfully!',
+          [
+            {
+              text: 'Login Now',
+              onPress: () => {
+                // Navigate to login screen and clear the stack
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              },
+            },
+          ]
+        );
       } else {
-        Alert.alert('Registration Failed', response.message || 'Failed to initiate registration');
+        Alert.alert('Registration Failed', response.message || 'Failed to complete registration');
       }
     } catch (error) {
       Alert.alert('Registration Error', error.message || 'Something went wrong during registration');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleUserType = () => {
-    setFormData(prev => ({
-      ...prev,
-      userType: prev.userType === 'player' ? 'organizer' : 'player'
-    }));
   };
 
   const openPrivacyPolicy = () => {
@@ -198,75 +286,185 @@ const RegisterScreen = ({ route, navigation }) => {
     // Implementation for opening terms of service
   };
 
-  return (
-    <LinearGradient
-      colors={['#1e3c72', '#2a5298', '#1e3c72']}
-      style={styles.backgroundGradient}
-    >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>Create Your Account</Text>
-            <Text style={styles.subtitle}>
-              Join Champions Arena and start your gaming journey
+  // Render based on current registration step
+  const renderStepContent = () => {
+    switch (registrationStep) {
+      case 1:
+        return (
+          <>
+            <View style={styles.stepIndicator}>
+              <View style={[styles.stepDot, styles.activeStepDot]}>
+                <Text style={styles.stepNumber}>1</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot}>
+                <Text style={styles.stepNumber}>2</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot}>
+                <Text style={styles.stepNumber}>3</Text>
+              </View>
+            </View>
+
+            <Text style={styles.stepTitle}>Step 1: Enter Your Email</Text>
+            <Text style={styles.stepDescription}>
+              We'll send a verification code to your email address to confirm it's really you.
             </Text>
-          </View>
 
-          <View style={styles.authTypeContainer}>
-            <TouchableOpacity 
-              style={styles.authTypeTab}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.authTypeText}>Login</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.authTypeTab, styles.authTypeTabActive]}
-              onPress={() => {}}
-            >
-              <Text style={[styles.authTypeText, styles.authTypeTextActive]}>Register</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Profile Image Selection */}
-          <View style={styles.profileImageContainer}>
-            <TouchableOpacity 
-              style={styles.profileImageButton}
-              onPress={pickImage}
-            >
-              {profileImage ? (
-                <Image source={{ uri: profileImage }} style={styles.profileImage} />
-              ) : (
-                <View style={styles.profileImagePlaceholder}>
-                  <Ionicons name="camera" size={40} color="#fff" />
-                  <Text style={styles.profileImageText}>Add Photo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Common Fields */}
-          <View style={styles.formSection}>            
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
                 style={styles.input}
                 value={formData.email}
                 onChangeText={(value) => updateFormField('email', value)}
-                placeholder="Enter your email"
+                placeholder="your.email@example.com"
                 placeholderTextColor={colors.text.placeholder}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!routeEmail} // Only editable if not set from route
               />
             </View>
-            
+
+            <TouchableOpacity 
+              style={styles.policyCheckbox} 
+              onPress={() => setPolicyAccepted(!policyAccepted)}
+            >
+              <View style={[styles.checkbox, policyAccepted && styles.checkboxChecked]}>
+                {policyAccepted && <Ionicons name="checkmark" size={16} color="#fff" />}
+              </View>
+              <Text style={styles.policyText}>
+                I agree to the{' '}
+                <Text style={styles.policyLink} onPress={openTermsOfService}>
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text style={styles.policyLink} onPress={openPrivacyPolicy}>
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleSendOtp}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Send Verification Code</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        );
+
+      case 2:
+        return (
+          <>
+            <View style={styles.stepIndicator}>
+              <View style={[styles.stepDot, styles.completedStepDot]}>
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              </View>
+              <View style={styles.stepLine} />
+              <View style={[styles.stepDot, styles.activeStepDot]}>
+                <Text style={styles.stepNumber}>2</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot}>
+                <Text style={styles.stepNumber}>3</Text>
+              </View>
+            </View>
+
+            <Text style={styles.stepTitle}>Step 2: Verify Your Email</Text>
+            <Text style={styles.stepDescription}>
+              Enter the 6-digit verification code we sent to {formData.email}
+            </Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Verification Code</Text>
+              <TextInput
+                style={[styles.input, styles.otpInput]}
+                value={formData.otp}
+                onChangeText={(value) => updateFormField('otp', value.replace(/[^0-9]/g, '').slice(0, 6))}
+                placeholder="123456"
+                placeholderTextColor={colors.text.placeholder}
+                keyboardType="numeric"
+                maxLength={6}
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.resendButton, otpResendTimer > 0 && styles.resendButtonDisabled]}
+              onPress={handleResendOtp}
+              disabled={otpResendTimer > 0}
+            >
+              <Text style={styles.resendButtonText}>
+                {otpResendTimer > 0 
+                  ? `Resend code in ${otpResendTimer}s` 
+                  : 'Resend verification code'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleVerifyOtp}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Verify</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setRegistrationStep(1)}
+            >
+              <Text style={styles.backButtonText}>Back to Email</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 3:
+        return (
+          <>
+            <View style={styles.stepIndicator}>
+              <View style={[styles.stepDot, styles.completedStepDot]}>
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              </View>
+              <View style={styles.stepLine} />
+              <View style={[styles.stepDot, styles.completedStepDot]}>
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              </View>
+              <View style={styles.stepLine} />
+              <View style={[styles.stepDot, styles.activeStepDot]}>
+                <Text style={styles.stepNumber}>3</Text>
+              </View>
+            </View>
+
+            <Text style={styles.stepTitle}>Step 3: Complete Your Profile</Text>
+            <Text style={styles.stepDescription}>
+              Fill in your details to complete your Champions Arena player profile.
+            </Text>
+
+            {/* Profile Image Selection */}
+            <View style={styles.profileImageContainer}>
+              <TouchableOpacity 
+                style={styles.profileImageButton}
+                onPress={pickImage}
+              >
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                ) : (
+                  <View style={styles.profileImagePlaceholder}>
+                    <Ionicons name="camera" size={40} color="#fff" />
+                    <Text style={styles.profileImageText}>Add Photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
@@ -289,157 +487,144 @@ const RegisterScreen = ({ route, navigation }) => {
                 autoCapitalize="none"
               />
             </View>
-          </View>
 
-          {/* User Type Selection */}
-          <View style={styles.userTypeContainer}>
-            <Text style={styles.userTypeLabel}>I am a:</Text>
-            <View style={styles.userTypeToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  formData.userType === 'player' && styles.userTypeButtonActive,
-                ]}
-                onPress={() => updateFormField('userType', 'player')}
-              >
-                <Text
-                  style={[
-                    styles.userTypeButtonText,
-                    formData.userType === 'player' && styles.userTypeButtonTextActive,
-                  ]}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={formData.password}
+                  onChangeText={(value) => updateFormField('password', value)}
+                  placeholder="Create a strong password"
+                  placeholderTextColor={colors.text.placeholder}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.passwordVisibilityButton}
+                  onPress={() => setShowPassword(!showPassword)}
                 >
-                  Player
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  formData.userType === 'organizer' && styles.userTypeButtonActive,
-                ]}
-                onPress={() => updateFormField('userType', 'organizer')}
-              >
-                <Text
-                  style={[
-                    styles.userTypeButtonText,
-                    formData.userType === 'organizer' && styles.userTypeButtonTextActive,
-                  ]}
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={24}
+                    color="rgba(255, 255, 255, 0.7)"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={formData.confirmPassword}
+                  onChangeText={(value) => updateFormField('confirmPassword', value)}
+                  placeholder="Confirm your password"
+                  placeholderTextColor={colors.text.placeholder}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity
+                  style={styles.passwordVisibilityButton}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
-                  Organizer
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons
+                    name={showConfirmPassword ? "eye-off" : "eye"}
+                    size={24}
+                    color="rgba(255, 255, 255, 0.7)"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          {/* Player Fields */}
-          {formData.userType === 'player' && (
-            <View style={styles.formSection}>              
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>FreeFire UID</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.uid}
-                  onChangeText={(value) => updateFormField('uid', value)}
-                  placeholder="Your FreeFire user ID"
-                  placeholderTextColor={colors.text.placeholder}
-                  keyboardType="numeric"
-                />
-              </View>
-              
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Mobile Number (Optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.mobileNumber}
-                  onChangeText={(value) => updateFormField('mobileNumber', value)}
-                  placeholder="Your mobile number"
-                  placeholderTextColor={colors.text.placeholder}
-                  keyboardType="phone-pad"
-                />
-              </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>FreeFire UID</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.uid}
+                onChangeText={(value) => updateFormField('uid', value)}
+                placeholder="Your FreeFire user ID"
+                placeholderTextColor={colors.text.placeholder}
+                keyboardType="numeric"
+              />
             </View>
-          )}
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Mobile Number (Optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.mobileNumber}
+                onChangeText={(value) => updateFormField('mobileNumber', value)}
+                placeholder="Your mobile number"
+                placeholderTextColor={colors.text.placeholder}
+                keyboardType="phone-pad"
+              />
+            </View>
 
-          {/* Organizer Fields */}
-          {formData.userType === 'organizer' && (
-            <View style={styles.formSection}>              
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Phone Number</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.phoneNumber}
-                  onChangeText={(value) => updateFormField('phoneNumber', value)}
-                  placeholder="Your phone number"
-                  placeholderTextColor={colors.text.placeholder}
-                  keyboardType="phone-pad"
-                />
-              </View>
-              
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Company Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.companyName}
-                  onChangeText={(value) => updateFormField('companyName', value)}
-                  placeholder="Your company or organization name"
-                  placeholderTextColor={colors.text.placeholder}
-                />
-              </View>
-              
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>UPI ID (Optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.upiId}
-                  onChangeText={(value) => updateFormField('upiId', value)}
-                  placeholder="For receiving payments"
-                  placeholderTextColor={colors.text.placeholder}
-                />
-              </View>
-            </View>
-          )}
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleCompleteRegistration}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Complete Registration</Text>
+              )}
+            </TouchableOpacity>
 
-          {/* Terms & Conditions */}
-          <TouchableOpacity 
-            style={styles.policyCheckbox} 
-            onPress={() => setPolicyAccepted(!policyAccepted)}
-          >
-            <View style={[styles.checkbox, policyAccepted && styles.checkboxChecked]}>
-              {policyAccepted && <Ionicons name="checkmark" size={16} color="#fff" />}
-            </View>
-            <Text style={styles.policyText}>
-              I agree to the{' '}
-              <Text style={styles.policyLink} onPress={openTermsOfService}>
-                Terms of Service
-              </Text>{' '}
-              and{' '}
-              <Text style={styles.policyLink} onPress={openPrivacyPolicy}>
-                Privacy Policy
-              </Text>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setRegistrationStep(2)}
+            >
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <LinearGradient
+      colors={['#1e3c72', '#2a5298', '#1e3c72']}
+      style={styles.backgroundGradient}
+    >
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Player Registration</Text>
+            <Text style={styles.subtitle}>
+              Join Champions Arena and start your gaming journey
             </Text>
-          </TouchableOpacity>
+          </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleRegister}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.authTypeContainer}>
+            <TouchableOpacity 
+              style={styles.authTypeTab}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.authTypeText}>Login</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.authTypeTab, styles.authTypeTabActive]}
+              onPress={() => {}}
+            >
+              <Text style={[styles.authTypeText, styles.authTypeTextActive]}>Register</Text>
+            </TouchableOpacity>
+          </View>
 
-          {formData.userType === 'organizer' && (
-            <View style={styles.organizerNote}>
-              <Ionicons name="information-circle-outline" size={18} color="#fff" style={{marginRight: 5}} />
-              <Text style={styles.organizerNoteText}>
-                Organizer accounts require approval before hosting tournaments.
-              </Text>
-            </View>
-          )}
+          <View style={styles.formContainer}>
+            {renderStepContent()}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -499,6 +684,61 @@ const styles = StyleSheet.create({
   authTypeTextActive: {
     fontWeight: 'bold',
   },
+  formContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 25,
+    paddingHorizontal: 20,
+  },
+  stepDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  activeStepDot: {
+    backgroundColor: colors.primary,
+    borderColor: '#fff',
+  },
+  completedStepDot: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#fff',
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 5,
+  },
+  stepNumber: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  stepTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: '#ddd',
+    marginBottom: 25,
+    textAlign: 'center',
+  },
   profileImageContainer: {
     alignItems: 'center',
     marginBottom: 20,
@@ -527,15 +767,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
     fontSize: 14,
   },
-  formSection: {
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 15,
-  },
   inputContainer: {
     marginBottom: 15,
   },
@@ -553,48 +784,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
-  inputDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-    padding: 12,
-    color: '#ccc',
-    fontSize: 16,
+  otpInput: {
+    fontSize: 18,
+    letterSpacing: 5,
+    textAlign: 'center',
   },
-  userTypeContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  userTypeLabel: {
-    fontSize: 14,
-    marginBottom: 8,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  userTypeToggle: {
+  passwordInputContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    overflow: 'hidden',
-  },
-  userTypeButton: {
-    flex: 1,
-    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
   },
-  userTypeButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  userTypeButtonText: {
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    color: '#fff',
     fontSize: 16,
-    color: '#fff',
   },
-  userTypeButtonTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
+  passwordVisibilityButton: {
+    padding: 10,
   },
   policyCheckbox: {
     flexDirection: 'row',
@@ -624,12 +834,23 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textDecorationLine: 'underline',
   },
+  resendButton: {
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  resendButtonDisabled: {
+    opacity: 0.5,
+  },
+  resendButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+  },
   button: {
     backgroundColor: colors.primary,
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
   },
   buttonDisabled: {
     opacity: 0.7,
@@ -639,20 +860,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  organizerNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    padding: 10,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: 'orange',
+  backButton: {
+    alignSelf: 'center',
   },
-  organizerNoteText: {
-    fontSize: 12,
-    color: '#fff',
-    flex: 1,
+  backButtonText: {
+    color: '#ddd',
+    fontSize: 14,
   },
 });
 
-export default RegisterScreen; 
+export default RegisterScreen;

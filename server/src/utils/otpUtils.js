@@ -1,6 +1,9 @@
-// Generate a 6-digit OTP
+// Generate a 6-digit OTP with expiry time (10 minutes from now)
 export const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiryTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+  
+  return { otp, expiryTime };
 };
 
 // Send OTP to email
@@ -13,4 +16,4 @@ export const sendOTP = async (email, otp) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   return true;
-}; 
+};

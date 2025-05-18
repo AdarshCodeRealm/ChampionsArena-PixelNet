@@ -1,24 +1,26 @@
-import { Player } from '../models/player.model.js';
-import { Organizer } from '../models/organizer.model.js';
+import PlayerAuth from '../models/playerAuth.model.js';
 import { verifyToken } from '../utils/token.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
 export const authMiddleware = async (req, res, next) => {
   try {
-    // Extract token from header
+    // Get token from header OR cookie
+    let token;
     const authHeader = req.headers.authorization;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json(
-        new ApiResponse(401, null, "Unauthorized: No token provided")
-      );
+    // First check Authorization header
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } 
+    // If not in header, check cookies
+    else if (req.cookies && req.cookies.accessToken) {
+      token = req.cookies.accessToken;
     }
     
-    const token = authHeader.split(' ')[1];
-    
+    // If no token found in either place
     if (!token) {
       return res.status(401).json(
-        new ApiResponse(401, null, "Unauthorized: Invalid token format")
+        new ApiResponse(401, null, "Unauthorized: No token provided")
       );
     }
     
@@ -31,28 +33,24 @@ export const authMiddleware = async (req, res, next) => {
       );
     }
     
-    // Determine user type and model
-    const userType = decoded.userType || 'player';
-    const UserModel = userType === 'organizer' ? Organizer : Player;
+    // Find player
+    const player = await PlayerAuth.findById(decoded._id).select("-password -otp -otpExpiry");
     
-    // Find user
-    const user = await UserModel.findById(decoded._id).select("-password -otp -otpExpiry");
-    
-    if (!user) {
+    if (!player) {
       return res.status(401).json(
-        new ApiResponse(401, null, "Unauthorized: User not found")
+        new ApiResponse(401, null, "Unauthorized: Player not found")
       );
     }
     
-    // Check if user is verified
-    if (!user.isVerified) {
+    // Check if player is verified
+    if (!player.isVerified) {
       return res.status(401).json(
         new ApiResponse(401, null, "Unauthorized: Account not verified")
       );
     }
     
-    // Attach user to request
-    req.user = user;
+    // Attach player to request
+    req.player = player;
     next();
     
   } catch (error) {
@@ -62,58 +60,3 @@ export const authMiddleware = async (req, res, next) => {
     );
   }
 };
-
-// Middleware to check if the user is a player
-export const playerAuthMiddleware = async (req, res, next) => {
-  try {
-    // First use the regular auth middleware
-    authMiddleware(req, res, (err) => {
-      if (err) return next(err);
-      
-      // Check if user is a player
-      if (req.user.userType !== 'player') {
-        return res.status(403).json(
-          new ApiResponse(403, null, "Forbidden: Player access required")
-        );
-      }
-      next();
-    });
-  } catch (error) {
-    console.error("Player auth middleware error:", error);
-    return res.status(500).json(
-      new ApiResponse(500, null, "Internal server error during authentication")
-    );
-  }
-};
-
-// Middleware to check if the user is an organizer
-export const organizerAuthMiddleware = async (req, res, next) => {
-  try {
-    console.log("org middle")
-    // First use the regular auth middleware
-    authMiddleware(req, res, (err) => {
-      if (err) return next(err);s
-      
-      // Check if user is an organizer
-      if (req.user.userType !== 'organizer') {
-        return res.status(403).json(
-          new ApiResponse(403, null, "Forbidden: Organizer access required")
-        );
-      }
-      
-      // Check if organizer is approved
-      if (!req.user.isApproved) {
-        return res.status(403).json(
-          new ApiResponse(403, null, "Forbidden: Your organizer account is pending approval")
-        );
-      }
-      
-      next();
-    });
-  } catch (error) {
-    console.error("Organizer auth middleware error:", error);
-    return res.status(500).json(
-      new ApiResponse(500, null, "Internal server error during authentication")
-    );
-  }
-}; 

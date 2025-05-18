@@ -17,12 +17,8 @@ app.use(express.urlencoded({ limit: "16kb", extended: true }))
 app.use(express.static("public"))
 app.use(cookieParser())
 
-import TournamentRoute from "./routes/Tournament.route.js";
-import AuthRoute from "./routes/auth.route.js";
-import UserRoute from "./routes/user.route.js";
+import PlayerAuthRoute from "./routes/player.auth.route.js";
 
-app.use("/api/v1/tournaments", TournamentRoute);
-app.use("/api/v1/auth", AuthRoute);
-app.use("/api/v1/users", UserRoute);
+app.use("/api/v1/player-auth", PlayerAuthRoute);
 
 export {app}

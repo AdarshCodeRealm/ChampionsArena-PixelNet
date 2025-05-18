@@ -1,0 +1,451 @@
+{
+	"info": {
+		"_postman_id": "b42c5c4e-3b0c-4ca3-8a7c-53f8c8e0b244",
+		"name": "Champions Arena Player Auth API",
+		"description": "Collection for testing player authentication system for Champions Arena",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Player Authentication",
+			"item": [
+				{
+					"name": "Register Player",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Test Player",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "testplayer@example.com",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "testgamer123",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "Password123!",
+									"type": "text"
+								},
+								{
+									"key": "uid",
+									"value": "123456789",
+									"type": "text"
+								},
+								{
+									"key": "mobileNumber",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "isOtpVerified",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/register",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"register"
+							]
+						},
+						"description": "Register a new player with personal details, FreeFire UID, and optional mobile number."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Player",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\",\n    \"password\": \"Password123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/login",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"login"
+							]
+						},
+						"description": "Login with player email and password. The test script automatically saves the returned tokens to environment variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Email with OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\",\n    \"otp\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/verify-email",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"verify-email"
+							]
+						},
+						"description": "Verify email address with OTP code received via email"
+					},
+					"response": []
+				},
+				{
+					"name": "Resend OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/resend-otp",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"resend-otp"
+							]
+						},
+						"description": "Request a new OTP to be sent to email address"
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/forgot-password",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"forgot-password"
+							]
+						},
+						"description": "Request password reset link"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"7a9d6c8b1e3f5a2d4c6b8a0e2d4f6a8c\",\n    \"newPassword\": \"NewPassword456!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/reset-password",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"reset-password"
+							]
+						},
+						"description": "Reset password using token received via email"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout Player",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/logout",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"logout"
+							]
+						},
+						"description": "Logout and invalidate access tokens"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{REFRESH_TOKEN}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/refresh-token",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"refresh-token"
+							]
+						},
+						"description": "Get new access token using refresh token"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"oldPassword\": \"Password123!\",\n    \"newPassword\": \"NewPassword456!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/change-password",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"change-password"
+							]
+						},
+						"description": "Change current user's password (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Player Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/profile",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"profile"
+							]
+						},
+						"description": "Get authenticated player's profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Player Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Updated Player Name",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "upgradedgamer",
+									"type": "text"
+								},
+								{
+									"key": "mobileNumber",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{PLAYER_AUTH}}/profile",
+							"host": [
+								"{{PLAYER_AUTH}}"
+							],
+							"path": [
+								"profile"
+							]
+						},
+						"description": "Update authenticated player's profile information"
+					},
+					"response": []
+				}
+			],
+			"description": "Player authentication endpoints for registration, login, and profile management."
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{ACCESS_TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:5000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "PLAYER_AUTH",
+			"value": "{{BASE_URL}}/player-auth",
+			"type": "string"
+		}
+	]
+}

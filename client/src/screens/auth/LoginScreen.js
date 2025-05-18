@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
+import {View, Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -22,8 +20,9 @@ import { useAuth } from '../../contexts/AuthContext';
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [userType, setUserType] = useState('player'); // 'player' or 'organizer'
+  const [showPassword, setShowPassword] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
 
   const validateEmail = (email) => {
@@ -31,56 +30,104 @@ const LoginScreen = ({ navigation }) => {
     return regex.test(email);
   };
 
-  const handleContinue = async () => {
+  const validateForm = () => {
+    if (!email.trim()) {
+      Alert.alert('Missing Information', 'Please enter your email');
+      return false;
+    }
+    
     if (!validateEmail(email)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address');
-      return;
+      return false;
     }
-
+    
+    if (!password.trim()) {
+      Alert.alert('Missing Information', 'Please enter your password');
+      return false;
+    }
+    
     if (!policyAccepted) {
       Alert.alert('Terms & Privacy Policy', 'Please accept our Terms of Service and Privacy Policy to continue');
-      return;
+      return false;
     }
+    
+    return true;
+  };
+
+  const handleLogin = async () => {
+    if (!validateForm()) return;
 
     setIsLoading(true);
 
     try {
-      // For existing users, only email is required
-      // For new users, additional information will be collected after OTP verification
-      const response = await authService.initiateOtpAuth({ email }, userType);
+      const response = await authService.loginWithPassword(email, password);
 
       if (response.success) {
-        if (response.requiresRegistration) {
-          // User doesn't exist - needs to register
-          Alert.alert(
-            'Account Not Found',
-            'No account found with this email. Would you like to create a new account?',
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel'
-              },
-              {
-                text: 'Register',
-                onPress: () => navigation.navigate('Register', { email, userType })
-              }
-            ]
-          );
-        } else {
-          // Existing user - navigate to OTP verification
-          navigation.navigate('OtpVerification', {
-            email,
-            userType,
-          });
-        }
+        // Login successful
+        login(response.accessToken, response.refreshToken, response.user);
+      } else if (response.userNotFound) {
+        // User doesn't exist - prompt to register
+        Alert.alert(
+          'Account Not Found',
+          'No account found with this email. Would you like to create a new account?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Register',
+              onPress: () => navigation.navigate('Register', { email })
+            }
+          ]
+        );
       } else {
-        Alert.alert('Error', response.message || 'Failed to initiate authentication');
+        // Invalid credentials or other error
+        Alert.alert('Login Failed', response.message || 'Invalid email or password');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
+      Alert.alert('Login Error', error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    // Navigate to password reset screen or send password reset email
+    Alert.alert(
+      'Reset Password',
+      'Would you like to receive a password reset link via email?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Send Reset Link',
+          onPress: async () => {
+            if (!email.trim() || !validateEmail(email)) {
+              Alert.alert('Invalid Email', 'Please enter a valid email address first');
+              return;
+            }
+            
+            setIsLoading(true);
+            try {
+              const response = await authService.resetPassword(email);
+              
+              if (response.success) {
+                Alert.alert('Reset Link Sent', 'Please check your email for password reset instructions');
+              } else {
+                Alert.alert('Error', response.message || 'Failed to send reset link');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.message || 'Something went wrong');
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleSkip = () => {
@@ -113,10 +160,6 @@ const LoginScreen = ({ navigation }) => {
 
   const openRefundPolicy = () => {
     Linking.openURL('https://championsarena.com/refund-policy');
-  };
-
-  const toggleUserType = () => {
-    setUserType(userType === 'player' ? 'organizer' : 'player');
   };
 
   return (
@@ -158,10 +201,10 @@ const LoginScreen = ({ navigation }) => {
               </View>
               
               <View style={styles.missionContainer}>
-                <Text style={styles.missionTitle}>Our Mission</Text>
+                <Text style={styles.missionTitle}>Player Login</Text>
                 <Text style={styles.missionText}>
-                  Empowering gamers to build professional careers and compete on a global scale. 
-                  Join our community of elite players and take your gaming to the next level.
+                  Sign in to your Champions Arena account to join tournaments, track your progress,
+                  and compete with players worldwide.
                 </Text>
               </View>
               
@@ -179,44 +222,36 @@ const LoginScreen = ({ navigation }) => {
                 />
               </View>
               
-              <View style={styles.userTypeContainer}>
-                <Text style={styles.userTypeLabel}>I am a:</Text>
-                <View style={styles.userTypeToggle}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Enter your password"
+                    placeholderTextColor={colors.text.placeholder}
+                    secureTextEntry={!showPassword}
+                  />
                   <TouchableOpacity
-                    style={[
-                      styles.userTypeButton,
-                      userType === 'player' && styles.userTypeButtonActive,
-                    ]}
-                    onPress={() => setUserType('player')}
+                    style={styles.passwordVisibilityButton}
+                    onPress={() => setShowPassword(!showPassword)}
                   >
-                    <Text
-                      style={[
-                        styles.userTypeButtonText,
-                        userType === 'player' && styles.userTypeButtonTextActive,
-                      ]}
-                    >
-                      Player
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.userTypeButton,
-                      userType === 'organizer' && styles.userTypeButtonActive,
-                    ]}
-                    onPress={() => setUserType('organizer')}
-                  >
-                    <Text
-                      style={[
-                        styles.userTypeButtonText,
-                        userType === 'organizer' && styles.userTypeButtonTextActive,
-                      ]}
-                    >
-                      Organizer
-                    </Text>
+                    <Ionicons
+                      name={showPassword ? "eye-off" : "eye"}
+                      size={24}
+                      color="rgba(255, 255, 255, 0.7)"
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
+              
+              <TouchableOpacity 
+                style={styles.forgotPasswordButton} 
+                onPress={handleForgotPassword}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.policyCheckbox} 
@@ -239,13 +274,13 @@ const LoginScreen = ({ navigation }) => {
               
               <TouchableOpacity
                 style={[styles.button, isLoading && styles.buttonDisabled]}
-                onPress={handleContinue}
+                onPress={handleLogin}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Continue</Text>
+                  <Text style={styles.buttonText}>Login</Text>
                 )}
               </TouchableOpacity>
               
@@ -253,8 +288,15 @@ const LoginScreen = ({ navigation }) => {
                 style={styles.skipButton}
                 onPress={handleSkip}
               >
-                <Text style={styles.skipButtonText}>Skip for now</Text>
+                <Text style={styles.skipButtonText}>Continue as Guest</Text>
               </TouchableOpacity>
+              
+              <View style={styles.newUserContainer}>
+                <Text style={styles.newUserText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                  <Text style={styles.newUserLink}>Register Now</Text>
+                </TouchableOpacity>
+              </View>
               
               <View style={styles.additionalLinks}>
                 <TouchableOpacity onPress={openRefundPolicy}>
@@ -262,22 +304,13 @@ const LoginScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.linkDivider}>•</Text>
                 <TouchableOpacity onPress={openPrivacyPolicy}>
-                  <Text style={styles.linkText}>Payment Policy</Text>
+                  <Text style={styles.linkText}>Privacy Policy</Text>
                 </TouchableOpacity>
                 <Text style={styles.linkDivider}>•</Text>
-                <TouchableOpacity onPress={openPrivacyPolicy}>
+                <TouchableOpacity>
                   <Text style={styles.linkText}>Help</Text>
                 </TouchableOpacity>
               </View>
-              
-              {userType === 'organizer' && (
-                <View style={styles.organizerNote}>
-                  <Ionicons name="information-circle-outline" size={18} color="#fff" style={{marginRight: 5}} />
-                  <Text style={styles.organizerNoteText}>
-                    Organizer accounts require approval before hosting tournaments.
-                  </Text>
-                </View>
-              )}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -362,6 +395,7 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
+    width: '100%',
   },
   missionTitle: {
     fontSize: 18,
@@ -376,7 +410,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 15,
   },
   label: {
     fontSize: 14,
@@ -394,39 +428,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     width: '100%',
   },
-  userTypeContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  userTypeLabel: {
-    fontSize: 14,
-    marginBottom: 8,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  userTypeToggle: {
+  passwordInputContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    overflow: 'hidden',
-  },
-  userTypeButton: {
-    flex: 1,
-    padding: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
-  userTypeButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  userTypeButtonText: {
+  passwordInput: {
+    flex: 1,
+    padding: 15,
+    color: '#fff',
     fontSize: 16,
-    color: '#fff',
   },
-  userTypeButtonTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
+  passwordVisibilityButton: {
+    padding: 15,
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 15,
+  },
+  forgotPasswordText: {
+    color: colors.primary,
+    fontSize: 14,
   },
   policyCheckbox: {
     flexDirection: 'row',
@@ -484,6 +509,20 @@ const styles = StyleSheet.create({
     color: '#ddd',
     fontSize: 16,
   },
+  newUserContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  newUserText: {
+    color: '#ddd',
+    fontSize: 14,
+  },
+  newUserLink: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   additionalLinks: {
     flexDirection: 'row',
     marginTop: 30,
@@ -499,21 +538,6 @@ const styles = StyleSheet.create({
     color: '#ddd',
     paddingHorizontal: 8,
   },
-  organizerNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 15,
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    padding: 10,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: 'orange',
-  },
-  organizerNoteText: {
-    fontSize: 12,
-    color: '#fff',
-    flex: 1,
-  },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

@@ -23,6 +23,34 @@ export const generateRefreshToken = (payload) => {
 };
 
 /**
+ * Generate both access and refresh tokens
+ * @param {Object} user - User object
+ * @returns {Object} - Object containing both tokens
+ */
+export const generateTokens = (user) => {
+  const payload = {
+    _id: user._id,
+    email: user.email,
+    username: user.username,
+    role: user.role || 'player'
+  };
+  
+  return {
+    accessToken: generateAccessToken(payload),
+    refreshToken: generateRefreshToken(payload)
+  };
+};
+
+/**
+ * Verify refresh token
+ * @param {string} token - Refresh token to verify
+ * @returns {Object} - Decoded token data
+ */
+export const verifyRefreshToken = (token) => {
+  return verifyToken(token, process.env.REFRESH_TOKEN_SECRET);
+};
+
+/**
  * Verify JWT token
  * @param {string} token - JWT token to verify
  * @param {string} secret - Secret key used for verification
@@ -35,4 +63,4 @@ export const verifyToken = (token, secret) => {
     console.error('JWT verification error:', error);
     return null;
   }
-}; 
+};
