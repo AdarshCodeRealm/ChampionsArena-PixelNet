@@ -35,7 +35,7 @@ Champions Arena is a modern web application built with a MERN stack (MongoDB, Ex
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/yourusername/ChampionsArena-PixelNet.git
+   git clone https://github.com/AdarshCodeRealm/ChampionsArena-PixelNet.git
    cd ChampionsArena-PixelNet
    ```
 
@@ -90,7 +90,7 @@ Champions Arena is a modern web application built with a MERN stack (MongoDB, Ex
 5. Open a Pull Request
 
 ## Author
-- Your Name - [GitHub Profile](https://github.com/AdarshCodeRealm)
+-[Adarsh Ramgirwar](https://github.com/AdarshCodeRealm)
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.

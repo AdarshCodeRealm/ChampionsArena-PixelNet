@@ -68,6 +68,13 @@ export const globalStyles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
+  avatarPlaceholder: {
+    height: '100%',
+    width: '100%',
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   sectionTitle: {
     color: colors.text.primary,
     fontSize: 16,
@@ -576,4 +583,4 @@ export const profileStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-}); 
+});

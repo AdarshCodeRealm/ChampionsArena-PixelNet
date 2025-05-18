@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,6 +20,7 @@ const Tab = createBottomTabNavigator();
 const MainStack = createStackNavigator();
 const AuthStack = createStackNavigator();
 const ProfileStack = createStackNavigator();
+const RootNavigator = createStackNavigator();
 
 // Profile Stack
 const ProfileStackScreen = () => (
@@ -27,15 +28,6 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
     <ProfileStack.Screen name="ManageMatches" component={ManageMatchesScreen} />
   </ProfileStack.Navigator>
-);
-
-// Auth Stack
-const AuthStackScreen = () => (
-  <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-    <AuthStack.Screen name="Login" component={LoginScreen} />
-    <AuthStack.Screen name="Register" component={RegisterScreen} />
-    <AuthStack.Screen name="OtpVerification" component={OtpVerificationScreen} />
-  </AuthStack.Navigator>
 );
 
 // Custom theme for NavigationContainer
@@ -94,8 +86,7 @@ const TabNavigator = () => {
 
 // Main App Navigator
 const AppNavigator = () => {
-  const { isLoading, userToken, userData } = useAuth();
-  const isGuest = userData?.id === 'guest';
+  const { isLoading, userToken } = useAuth();
 
   if (isLoading) {
     return (
@@ -107,21 +98,33 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer theme={MyTheme}>
-      <MainStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootNavigator.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+          cardStyle: { backgroundColor: colors.background }
+        }}
+      >
         {userToken ? (
-          <>
-            {/* Main app screen */}
-            <MainStack.Screen name="Main" component={TabNavigator} />
-
-            {/* Auth screens needed for guest users or profile section */}
-            <MainStack.Screen name="Login" component={LoginScreen} />
-            <MainStack.Screen name="Register" component={RegisterScreen} />
-            <MainStack.Screen name="OtpVerification" component={OtpVerificationScreen} />
-          </>
+          // User is logged in - Show Main App
+          <RootNavigator.Screen name="Main" component={TabNavigator} />
         ) : (
-          <MainStack.Screen name="Auth" component={AuthStackScreen} />
+          // User is not logged in - Show Auth Screens
+          <RootNavigator.Screen name="Auth">
+            {() => (
+              <AuthStack.Navigator 
+                screenOptions={{ 
+                  headerShown: false,
+                  animationEnabled: false 
+                }}
+              >
+                <AuthStack.Screen name="Login" component={LoginScreen} />
+                <AuthStack.Screen name="Register" component={RegisterScreen} />
+                <AuthStack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+              </AuthStack.Navigator>
+            )}
+          </RootNavigator.Screen>
         )}
-      </MainStack.Navigator>
+      </RootNavigator.Navigator>
     </NavigationContainer>
   );
 };

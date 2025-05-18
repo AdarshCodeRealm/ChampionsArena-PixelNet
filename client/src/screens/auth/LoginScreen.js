@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import {View, Text,
+import {
+  View, 
+  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -10,20 +12,19 @@ import {View, Text,
   Image,
   ScrollView,
   Linking,
+  ImageBackground,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import authService from '../../services/authService';
 import { colors } from '../../styles/globalStyles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
-  const { login } = useAuth();
+  const { loginWithPassword, authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,11 +47,6 @@ const LoginScreen = ({ navigation }) => {
       return false;
     }
     
-    if (!policyAccepted) {
-      Alert.alert('Terms & Privacy Policy', 'Please accept our Terms of Service and Privacy Policy to continue');
-      return false;
-    }
-    
     return true;
   };
 
@@ -60,94 +56,35 @@ const LoginScreen = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      const response = await authService.loginWithPassword(email, password);
+      const response = await loginWithPassword(email, password, rememberMe);
 
       if (response.success) {
-        // Login successful
-        login(response.accessToken, response.refreshToken, response.user);
-      } else if (response.userNotFound) {
-        // User doesn't exist - prompt to register
-        Alert.alert(
-          'Account Not Found',
-          'No account found with this email. Would you like to create a new account?',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Register',
-              onPress: () => navigation.navigate('Register', { email })
-            }
-          ]
-        );
+        // Login successful - AuthContext will handle token and user state
+        console.log("Login successful");
       } else {
-        // Invalid credentials or other error
+        // Handle failed login
         Alert.alert('Login Failed', response.message || 'Invalid email or password');
       }
     } catch (error) {
-      Alert.alert('Login Error', error.message || 'Something went wrong. Please try again.');
+      // Display the error from AuthContext if available
+      Alert.alert('Login Error', authError || error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
-    // Navigate to password reset screen or send password reset email
-    Alert.alert(
-      'Reset Password',
-      'Would you like to receive a password reset link via email?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Send Reset Link',
-          onPress: async () => {
-            if (!email.trim() || !validateEmail(email)) {
-              Alert.alert('Invalid Email', 'Please enter a valid email address first');
-              return;
-            }
-            
-            setIsLoading(true);
-            try {
-              const response = await authService.resetPassword(email);
-              
-              if (response.success) {
-                Alert.alert('Reset Link Sent', 'Please check your email for password reset instructions');
-              } else {
-                Alert.alert('Error', response.message || 'Failed to send reset link');
-              }
-            } catch (error) {
-              Alert.alert('Error', error.message || 'Something went wrong');
-            } finally {
-              setIsLoading(false);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handleSkip = () => {
-    // Skip authentication and set a temporary bypass token
-    const tempToken = 'guest-bypass-token';
-    // Create a guest user object
-    const guestUser = {
-      id: 'guest',
-      name: 'Guest User',
-      username: '@guest',
-      email: 'guest@example.com',
-      userType: 'player',
-      isVerified: true,
-      profilePicture: null,
-      rank: 'Unranked',
-      level: 1
-    };
+    if (!email.trim() || !validateEmail(email)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address first');
+      return;
+    }
     
-    // Use the login function from AuthContext to set a temporary token
-    login(tempToken, tempToken, guestUser);
+    // Navigate to forgot password screen with the email
+    navigation.navigate('OtpVerification', { 
+      email, 
+      flowType: 'passwordReset',
+      title: 'Reset Password'
+    });
   };
 
   const openPrivacyPolicy = () => {
@@ -163,74 +100,54 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <LinearGradient
-      colors={['#1e3c72', '#2a5298', '#1e3c72']}
-      style={styles.backgroundGradient}
+    <ImageBackground
+      source={require('../../../assets/loginwallpaper.jpg')}
+      style={styles.backgroundImage}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <View style={styles.overlay}>
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.overlay}>
-            <View style={styles.content}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../../assets/logo.jpg')}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-              
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.logoSection}>
+              <Image
+                source={require('../../../assets/logo.jpg')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
               <Text style={styles.title}>Champions Arena</Text>
               <Text style={styles.subtitle}>Global Gaming Tournament Platform</Text>
-              
-              <View style={styles.authTypeContainer}>
-                <TouchableOpacity 
-                  style={[styles.authTypeTab, styles.authTypeTabActive]}
-                  onPress={() => {}}
-                >
-                  <Text style={[styles.authTypeText, styles.authTypeTextActive]}>Login</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.authTypeTab}
-                  onPress={() => navigation.navigate('Register')}
-                >
-                  <Text style={styles.authTypeText}>Register</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.missionContainer}>
-                <Text style={styles.missionTitle}>Player Login</Text>
-                <Text style={styles.missionText}>
-                  Sign in to your Champions Arena account to join tournaments, track your progress,
-                  and compete with players worldwide.
-                </Text>
-              </View>
-              
+            </View>
+            
+            <View style={styles.formContainer}>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="your.email@example.com"
-                  placeholderTextColor={colors.text.placeholder}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="mail-outline" size={20} color="#aaa" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="your.email@example.com"
+                    placeholderTextColor="rgba(255,255,255,0.5)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
               </View>
               
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Password</Text>
-                <View style={styles.passwordInputContainer}>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#aaa" style={styles.inputIcon} />
                   <TextInput
-                    style={styles.passwordInput}
+                    style={styles.input}
                     value={password}
                     onChangeText={setPassword}
                     placeholder="Enter your password"
-                    placeholderTextColor={colors.text.placeholder}
+                    placeholderTextColor="rgba(255,255,255,0.5)"
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity
@@ -238,306 +155,233 @@ const LoginScreen = ({ navigation }) => {
                     onPress={() => setShowPassword(!showPassword)}
                   >
                     <Ionicons
-                      name={showPassword ? "eye-off" : "eye"}
-                      size={24}
-                      color="rgba(255, 255, 255, 0.7)"
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={22}
+                      color="#aaa"
                     />
                   </TouchableOpacity>
                 </View>
               </View>
               
-              <TouchableOpacity 
-                style={styles.forgotPasswordButton} 
-                onPress={handleForgotPassword}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.policyCheckbox} 
-                onPress={() => setPolicyAccepted(!policyAccepted)}
-              >
-                <View style={[styles.checkbox, policyAccepted && styles.checkboxChecked]}>
-                  {policyAccepted && <Ionicons name="checkmark" size={16} color="#fff" />}
-                </View>
-                <Text style={styles.policyText}>
-                  I agree to the{' '}
-                  <Text style={styles.policyLink} onPress={openTermsOfService}>
-                    Terms of Service
-                  </Text>{' '}
-                  and{' '}
-                  <Text style={styles.policyLink} onPress={openPrivacyPolicy}>
-                    Privacy Policy
-                  </Text>
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.loginOptionsContainer}>
+                <TouchableOpacity 
+                  style={styles.rememberMeContainer} 
+                  onPress={() => setRememberMe(!rememberMe)}
+                >
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </View>
+                  <Text style={styles.rememberMeText}>Remember me</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.forgotPasswordButton} 
+                  onPress={handleForgotPassword}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
               
               <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[styles.loginButton, isLoading && styles.buttonDisabled]}
                 onPress={handleLogin}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Login</Text>
+                  <Text style={styles.loginButtonText}>LOG IN</Text>
                 )}
               </TouchableOpacity>
               
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkip}
-              >
-                <Text style={styles.skipButtonText}>Continue as Guest</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.newUserContainer}>
-                <Text style={styles.newUserText}>Don't have an account? </Text>
+              <View style={styles.registerPrompt}>
+                <Text style={styles.registerPromptText}>Don't have an account?</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                  <Text style={styles.newUserLink}>Register Now</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.additionalLinks}>
-                <TouchableOpacity onPress={openRefundPolicy}>
-                  <Text style={styles.linkText}>Refund Policy</Text>
-                </TouchableOpacity>
-                <Text style={styles.linkDivider}>•</Text>
-                <TouchableOpacity onPress={openPrivacyPolicy}>
-                  <Text style={styles.linkText}>Privacy Policy</Text>
-                </TouchableOpacity>
-                <Text style={styles.linkDivider}>•</Text>
-                <TouchableOpacity>
-                  <Text style={styles.linkText}>Help</Text>
+                  <Text style={styles.registerLink}>REGISTER NOW</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+            
+            <View style={styles.footer}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://championsarena.com/privacy-policy')}>
+                <Text style={styles.footerLink}>Privacy Policy</Text>
+              </TouchableOpacity>
+              <Text style={styles.footerDot}>•</Text>
+              <TouchableOpacity onPress={() => Linking.openURL('https://championsarena.com/help')}>
+                <Text style={styles.footerLink}>Help</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
-      </ScrollView>
-    </LinearGradient>
+      </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  backgroundGradient: {
+  backgroundImage: {
     flex: 1,
     width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: '100%',
+    height: '100%',
   },
   container: {
     flex: 1,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    padding: 20,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
-    paddingVertical: 40,
+    paddingBottom: 30,
+    paddingTop: 40,
   },
-  logoContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 75,
-    padding: 5,
-    marginBottom: 20,
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 30,
   },
   logo: {
     width: 100,
     height: 100,
+    borderRadius: 50,
+    backgroundColor: 'white',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 10,
+    marginBottom: 5,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 5,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#eee',
-    marginBottom: 20,
     textAlign: 'center',
   },
-  authTypeContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    marginBottom: 20,
+  formContainer: {
     width: '100%',
-    overflow: 'hidden',
-  },
-  authTypeTab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  authTypeTabActive: {
-    backgroundColor: colors.primary,
-  },
-  authTypeText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  authTypeTextActive: {
-    fontWeight: 'bold',
-  },
-  missionContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: 12,
+    padding: 20,
     marginBottom: 25,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    width: '100%',
-  },
-  missionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  missionText: {
-    fontSize: 14,
-    color: '#fff',
-    lineHeight: 20,
   },
   inputContainer: {
-    width: '100%',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
+    fontWeight: '500',
+    color: '#eee',
     marginBottom: 8,
-    color: '#fff',
-    fontWeight: '600',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  inputIcon: {
+    paddingLeft: 12,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 10,
-    padding: 15,
-    fontSize: 16,
-    color: '#fff',
-    width: '100%',
-  },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  passwordInput: {
     flex: 1,
-    padding: 15,
+    height: 50,
     color: '#fff',
     fontSize: 16,
+    paddingHorizontal: 12,
   },
   passwordVisibilityButton: {
-    padding: 15,
+    padding: 12,
   },
-  forgotPasswordButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 15,
-  },
-  forgotPasswordText: {
-    color: colors.primary,
-    fontSize: 14,
-  },
-  policyCheckbox: {
+  loginOptionsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    width: '100%',
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 4,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.primary,
-    marginRight: 10,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxChecked: {
     backgroundColor: colors.primary,
   },
-  policyText: {
+  rememberMeText: {
+    color: '#eee',
     fontSize: 14,
-    color: '#ddd',
-    flex: 1,
   },
-  policyLink: {
+  forgotPasswordButton: {
+    padding: 4,
+  },
+  forgotPasswordText: {
     color: colors.primary,
-    textDecorationLine: 'underline',
+    fontSize: 14,
+    fontWeight: '500',
   },
-  button: {
+  loginButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    width: '100%',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 20,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
-  buttonText: {
+  loginButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  skipButton: {
-    marginTop: 20,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 10,
-    paddingHorizontal: 20,
-  },
-  skipButtonText: {
-    color: '#ddd',
-    fontSize: 16,
-  },
-  newUserContainer: {
+  registerPrompt: {
     flexDirection: 'row',
-    marginTop: 20,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 15,
   },
-  newUserText: {
-    color: '#ddd',
+  registerPromptText: {
+    color: '#eee',
     fontSize: 14,
+    marginRight: 5,
   },
-  newUserLink: {
+  registerLink: {
     color: colors.primary,
     fontSize: 14,
     fontWeight: 'bold',
   },
-  additionalLinks: {
+  footer: {
     flexDirection: 'row',
-    marginTop: 30,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 20,
   },
-  linkText: {
-    fontSize: 12,
+  footerLink: {
     color: '#ddd',
-    textDecorationLine: 'underline',
+    fontSize: 14,
   },
-  linkDivider: {
+  footerDot: {
     color: '#ddd',
     paddingHorizontal: 8,
   },
-});
+})
 
 export default LoginScreen;

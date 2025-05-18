@@ -76,28 +76,21 @@ const ProfileScreen = ({ navigation }) => {
   };
   
   const handleLoginPress = async () => {
-    // For guest users, first logout and then navigate to login
+    // For guest users, first logout and then the auth context will handle navigation
     if (isGuestUser) {
       try {
-        // Set loading state if needed
         setIsLoading(true);
-        
-        // Logout the guest user
         await logout();
-        
-        // Navigate to Login screen
-        navigation.navigate('Login');
+        // No need to navigate - the AuthContext will change userToken
+        // which will automatically switch to the auth navigator
       } catch (error) {
         console.log('Error logging out guest user:', error);
-        // Still try to navigate to Login even if logout fails
-        navigation.navigate('Login');
       } finally {
-        // Reset loading state if needed
         setIsLoading(false);
       }
     } else {
-      // For non-authenticated users, just navigate to Login
-      navigation.navigate('Login');
+      // For non-authenticated users, we're already in the auth stack
+      // so no action needed
     }
   };
 

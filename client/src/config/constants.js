@@ -19,7 +19,7 @@ const CURRENT_ENV = ENV.DEVELOPMENT;
 
 // Base URLs for different environments
 const BASE_URLS = {
-  [ENV.DEVELOPMENT]: 'http://192.168.201.119:8000',
+  [ENV.DEVELOPMENT]: 'http://192.168.175.119:8000',
   [ENV.STAGING]: 'http://staging-api.championsarena.com',
   [ENV.PRODUCTION]: 'https://api.championsarena.com'
 };
@@ -53,14 +53,32 @@ export const DEBOUNCE_DELAY = 300; // milliseconds
 
 // Auth routes
 export const AUTH_ROUTES = {
+  // OTP authentication routes
   INITIATE_OTP: '/auth/initiate-otp-auth',
   VERIFY_OTP: '/auth/verify-otp',
   RESEND_OTP: '/auth/resend-otp',
+  
+  // Token related routes
   LOGOUT: '/auth/logout',
   REFRESH_TOKEN: '/auth/refresh-token',
-  PLAYER_AUTH: '/auth/player/initiate-otp-auth',
+  
+  // Player specific auth routes
+  PLAYER_AUTH: '/player-auth/initiate-otp-auth',
+  PLAYER_CHECK_AUTH: '/player-auth/check-auth',
+  PLAYER_REGISTER: '/player-auth/register',
+  LOGIN: '/player-auth/login',
+  CURRENT_USER: '/player-auth/me',
+  
+  // Password management
+  FORGOT_PASSWORD: '/player-auth/forgot-password',
+  RESET_PASSWORD: '/player-auth/reset-password',
+  CHANGE_PASSWORD: '/player-auth/change-password',
+  
+  // Profile management
+  UPDATE_PROFILE: '/player-auth/update-profile',
+  
+  // Organizer routes
   ORGANIZER_AUTH: '/auth/organizer/initiate-otp-auth',
-  PLAYER_CHECK_AUTH: '/auth/player/check-auth',
   ORGANIZER_CHECK_AUTH: '/auth/organizer/check-auth'
 };
 
@@ -77,4 +95,4 @@ export const USER_ROUTES = {
 export const TOURNAMENT_ROUTES = {
   ALL: '/tournaments',
   DETAIL: '/tournaments/:id'
-}; 
+};

@@ -13,19 +13,23 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
-import authService from '../../services/authService';
 import { colors } from '../../styles/globalStyles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { AUTH_ROUTES } from '../../config/constants';
 
 const OtpVerificationScreen = ({ route, navigation }) => {
-  const { email, userType, isRegistration } = route.params || {};
+  const { email, flowType = 'login', title = 'Verify OTP' } = route.params || {};
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(30);
-  const { login } = useAuth();
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  const { verifyOtp, resendOtp, resetPassword, authError } = useAuth();
   
   const inputRefs = useRef([]);
+  const isPasswordReset = flowType === 'passwordReset';
 
   useEffect(() => {
     // Check if we have required data
@@ -76,7 +80,27 @@ const OtpVerificationScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleVerifyOtp = async () => {
+  const validatePassword = () => {
+    if (isPasswordReset) {
+      if (!newPassword) {
+        Alert.alert('Missing Information', 'Please enter a new password');
+        return false;
+      }
+      
+      if (newPassword.length < 8) {
+        Alert.alert('Invalid Password', 'Password must be at least 8 characters long');
+        return false;
+      }
+      
+      if (newPassword !== confirmPassword) {
+        Alert.alert('Password Mismatch', 'Passwords do not match');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
     const otpValue = otp.join('');
     
     if (otpValue.length !== 6) {
@@ -84,20 +108,39 @@ const OtpVerificationScreen = ({ route, navigation }) => {
       return;
     }
     
+    if (!validatePassword()) {
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      const response = await authService.verifyOtp(email, otpValue, userType);
-      
-      if (response.success) {
-        const { accessToken, refreshToken, user } = response.data;
-        await login(accessToken, refreshToken, user);
-        // Navigation is handled by the AppNavigator based on auth state
+      if (isPasswordReset) {
+        // Handle password reset flow
+        const response = await resetPassword(email, otpValue, newPassword);
+        
+        if (response.success) {
+          Alert.alert('Success', 'Your password has been reset successfully', [
+            { text: 'OK', onPress: () => navigation.navigate('Login') }
+          ]);
+        } else {
+          Alert.alert('Reset Failed', response.message || 'Failed to reset password. Please try again.');
+        }
       } else {
-        Alert.alert('Verification Failed', response.message || 'Failed to verify OTP. Please try again.');
+        // Handle OTP verification flow (login/registration)
+        const response = await verifyOtp(email, otpValue, true);
+        
+        if (response.success) {
+          // Authentication handled by AuthContext
+          console.log("OTP verification successful");
+          // After successful verification, AuthContext will update userToken
+          // which will automatically trigger navigation to Main through AppNavigator
+        } else {
+          Alert.alert('Verification Failed', response.message || 'Failed to verify OTP. Please try again.');
+        }
       }
     } catch (error) {
-      Alert.alert('Verification Error', error.message || 'Something went wrong. Please try again.');
+      Alert.alert('Error', authError || error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +152,7 @@ const OtpVerificationScreen = ({ route, navigation }) => {
     setIsLoading(true);
     
     try {
-      const response = await authService.resendOtp(email, userType);
+      const response = await resendOtp(email);
       
       if (response.success) {
         setResendCountdown(30);
@@ -118,7 +161,7 @@ const OtpVerificationScreen = ({ route, navigation }) => {
         Alert.alert('Resend Failed', response.message || 'Failed to resend OTP. Please try again.');
       }
     } catch (error) {
-      Alert.alert('Resend Error', error.message || 'Something went wrong. Please try again.');
+      Alert.alert('Resend Error', authError || error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -136,9 +179,14 @@ const OtpVerificationScreen = ({ route, navigation }) => {
         >
           <View style={styles.overlay}>
             <View style={styles.content}>
-              <Ionicons name="lock-closed" size={60} color={colors.primary} style={styles.icon} />
+              <Ionicons 
+                name={isPasswordReset ? "key" : "lock-closed"} 
+                size={60} 
+                color={colors.primary} 
+                style={styles.icon} 
+              />
               
-              <Text style={styles.title}>Verify OTP</Text>
+              <Text style={styles.title}>{title}</Text>
               
               <Text style={styles.subtitle}>
                 Enter the 6-digit code sent to
@@ -148,9 +196,11 @@ const OtpVerificationScreen = ({ route, navigation }) => {
               <View style={styles.infoContainer}>
                 <Ionicons name="information-circle-outline" size={18} color="#fff" style={{marginRight: 8}} />
                 <Text style={styles.infoText}>
-                  {isRegistration 
+                  {flowType === 'registration' 
                     ? "We've sent a verification code to complete your registration"
-                    : "Enter the verification code to access your account"}
+                    : isPasswordReset
+                      ? "Enter the verification code to reset your password"
+                      : "Enter the verification code to access your account"}
                 </Text>
               </View>
               
@@ -170,15 +220,69 @@ const OtpVerificationScreen = ({ route, navigation }) => {
                 ))}
               </View>
               
+              {isPasswordReset && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>New Password</Text>
+                    <View style={styles.passwordInputContainer}>
+                      <TextInput
+                        style={styles.passwordInput}
+                        value={newPassword}
+                        onChangeText={setNewPassword}
+                        placeholder="Enter new password"
+                        placeholderTextColor={colors.text.placeholder}
+                        secureTextEntry={!showNewPassword}
+                      />
+                      <TouchableOpacity
+                        style={styles.passwordVisibilityButton}
+                        onPress={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        <Ionicons
+                          name={showNewPassword ? "eye-off" : "eye"}
+                          size={24}
+                          color="rgba(255, 255, 255, 0.7)"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Confirm Password</Text>
+                    <View style={styles.passwordInputContainer}>
+                      <TextInput
+                        style={styles.passwordInput}
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        placeholder="Confirm new password"
+                        placeholderTextColor={colors.text.placeholder}
+                        secureTextEntry={!showConfirmPassword}
+                      />
+                      <TouchableOpacity
+                        style={styles.passwordVisibilityButton}
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        <Ionicons
+                          name={showConfirmPassword ? "eye-off" : "eye"}
+                          size={24}
+                          color="rgba(255, 255, 255, 0.7)"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              )}
+              
               <TouchableOpacity 
                 style={[styles.button, isLoading && styles.buttonDisabled]}
-                onPress={handleVerifyOtp}
+                onPress={handleSubmit}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Verify & Continue</Text>
+                  <Text style={styles.buttonText}>
+                    {isPasswordReset ? 'Reset Password' : 'Verify & Continue'}
+                  </Text>
                 )}
               </TouchableOpacity>
               
@@ -284,6 +388,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     color: '#fff',
   },
+  inputContainer: {
+    width: '100%',
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 15,
+    color: '#fff',
+    fontSize: 16,
+  },
+  passwordVisibilityButton: {
+    padding: 15,
+  },
   button: {
     backgroundColor: colors.primary,
     paddingVertical: 15,
@@ -324,4 +455,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default OtpVerificationScreen; 
+export default OtpVerificationScreen;

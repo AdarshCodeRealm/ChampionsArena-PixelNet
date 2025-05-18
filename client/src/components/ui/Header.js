@@ -3,15 +3,19 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { globalStyles } from '../../styles/globalStyles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Header = ({ title, profile, onProfilePress }) => {
   // Check if this is a guest profile
   const isGuestProfile = profile && profile.id === 'guest';
   const navigation = useNavigation();
+  const { logout } = useAuth();
 
   // Handle login button press
   const handleLoginPress = () => {
-    navigation.navigate('Login');
+    // Instead of navigating directly, we'll use the auth context to log out
+    // This will trigger the navigation change at the AppNavigator level
+    logout();
   };
 
   return (
@@ -21,15 +25,21 @@ const Header = ({ title, profile, onProfilePress }) => {
       {/* Show profile button for regular users */}
       {profile && !isGuestProfile && (
         <View style={globalStyles.profileContainer}>
-          <Text style={globalStyles.profileName}>{profile.username}</Text>
+          <Text style={globalStyles.profileName}>{profile.name || profile.username}</Text>
           <TouchableOpacity 
             style={globalStyles.profileButton}
             onPress={onProfilePress}
           >
-            <Image 
-              source={{ uri: profile.avatar || 'https://via.placeholder.com/36' }} 
-              style={globalStyles.profileAvatar} 
-            />
+            {profile.profilePicture ? (
+              <Image 
+                source={{ uri: profile.profilePicture }} 
+                style={globalStyles.profileAvatar} 
+              />
+            ) : (
+              <View style={globalStyles.avatarPlaceholder}>
+                <Ionicons name="person" size={20} color="#fff" />
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -61,4 +71,4 @@ const Header = ({ title, profile, onProfilePress }) => {
   );
 };
 
-export default Header; 
+export default Header;
