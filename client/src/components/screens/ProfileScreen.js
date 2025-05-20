@@ -157,11 +157,31 @@ const ProfileScreen = ({ navigation }) => {
   // The profile to display in header
   const profileToDisplay = isAuthenticated && !isGuestUser ? userData : null;
 
+  // Get profile data with fallback for different property names
+  const getProfileData = () => {
+    if (userData) {
+      console.log("Current userData:", userData); // Debug log to see actual data
+      return {
+        name: userData.name || userData.displayName || userData.fullName || "User",
+        username: userData.username || userData.userName || userData.email || "@user",
+        profilePicture: userData.profilePicture || userData.avatar || userData.profileImage || userData.photoUrl || "https://via.placeholder.com/80",
+        rank: userData.rank || "Player",
+        level: userData.level || 1
+      };
+    }
+    return USER_PROFILE;
+  };
+
+  const profileData = getProfileData();
+  
+  // Use the better formatted profile data for the header if user is authenticated
+  const headerProfile = isAuthenticated && !isGuestUser ? profileData : null;
+  
   return (
     <SafeAreaView style={globalStyles.screen}>
       <Header
         title="Champions Arena"
-        profile={profileToDisplay}
+        profile={headerProfile}
         onProfilePress={isAuthenticated && !isGuestUser ? toggleMenu : handleLoginPress}
       />
 
@@ -169,15 +189,15 @@ const ProfileScreen = ({ navigation }) => {
         <ScrollView style={profileStyles.menuContainer}>
           <View style={profileStyles.profileSection}>
             <Image
-              source={{ uri: userData?.profilePicture || USER_PROFILE.avatar }}
+              source={{ uri: profileData.profilePicture }}
               style={profileStyles.profileImage}
             />
             <View style={profileStyles.profileInfo}>
               <Text style={[profileStyles.menuItemText, { marginBottom: 5 }]}>
-                {userData?.name || USER_PROFILE.name}
+                {profileData.name}
               </Text>
               <Text style={profileStyles.profileUsername}>
-                {userData?.username || USER_PROFILE.username}
+                {profileData.username}
               </Text>
             </View>
           </View>
@@ -228,22 +248,22 @@ const ProfileScreen = ({ navigation }) => {
             <>
               <View style={profileStyles.profileHeaderCard}>
                 <Image
-                  source={{ uri: userData?.profilePicture || USER_PROFILE.avatar }}
+                  source={{ uri: profileData.profilePicture }}
                   style={profileStyles.profileHeaderImage}
                 />
                 <Text style={profileStyles.profileHeaderName}>
-                  {userData?.name || USER_PROFILE.name}
+                  {profileData.name}
                 </Text>
                 <Text style={profileStyles.profileHeaderUsername}>
-                  {userData?.username || USER_PROFILE.username}
+                  {profileData.username}
                 </Text>
                 <View style={profileStyles.profileRankBadge}>
                   <Text style={profileStyles.profileRankText}>
-                    {userData?.rank || USER_PROFILE.rank}
+                    {profileData.rank}
                   </Text>
                 </View>
                 <Text style={profileStyles.profileLevel}>
-                  Level {userData?.level || USER_PROFILE.level}
+                  Level {profileData.level}
                 </Text>
                 <View style={profileStyles.statsRow}>
                   <View style={profileStyles.statItem}>

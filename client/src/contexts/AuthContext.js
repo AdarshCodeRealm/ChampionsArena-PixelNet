@@ -139,13 +139,16 @@ export const AuthProvider = ({ children }) => {
       // Store user data
       await AsyncStorage.setItem('user', JSON.stringify(user));
       
-      // Update state
+      // Update state - Set these directly without any conditions
       setUserToken(accessToken);
       setRefreshToken(refreshTokenValue);
       setUserData(user);
+      console.log("User data stored successfully:", userData);
       
       // Setup axios interceptors
       setupAxiosInterceptors(accessToken);
+
+      console.log("Login function completed - userToken set to:", accessToken);
       return true;
     } catch (error) {
       console.log('Login error:', error);
@@ -211,7 +214,16 @@ export const AuthProvider = ({ children }) => {
       
       if (response.data.success) {
         const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
+        console.log("OTP verification successful - user data:", user);
+        
+        // Store tokens and update state
         await login(accessToken, newRefreshToken, user, rememberMe);
+        
+        // Additional check to ensure userToken is set
+        if (!userToken) {
+          setUserToken(accessToken);
+        }
+        
         return { success: true, user };
       }
       return { success: false, message: 'Verification failed' };
@@ -238,16 +250,35 @@ export const AuthProvider = ({ children }) => {
   const loginWithPassword = async (email, password, rememberMe = true) => {
     setIsLoading(true);
     setAuthError(null);
+    
     try {
       const response = await axios.post(`${API_URL}${AUTH_ROUTES.LOGIN}`, {
         email,
         password
       });
-      
       if (response.data.success) {
         const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
-        console.log("user",user)
-        await login(accessToken, newRefreshToken, user, rememberMe);
+        console.log("Login successful - user data:", user);
+        
+        // First update the state directly for immediate effect
+        setUserToken(accessToken);
+        setRefreshToken(newRefreshToken);
+        setUserData(user);
+        
+        // Setup axios interceptors
+        setupAxiosInterceptors(accessToken);
+        
+        // Then store data in the background
+        setTimeout(async () => {
+          try {
+            await storeAuthTokens(accessToken, newRefreshToken, rememberMe);
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            console.log("Auth data stored successfully");
+          } catch (storageError) {
+            console.error('Error storing auth data:', storageError);
+          }
+        }, 0);
+        
         return { success: true, user };
       }
       return { success: false, message: 'Login failed' };

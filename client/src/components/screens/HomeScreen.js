@@ -217,7 +217,14 @@ const HomeScreen = ({ navigation }) => {
   // Replace hardcoded user profile with a function to get profile data
   const getProfileData = () => {
     if (userData) {
-      return userData;
+      console.log("HomeScreen userData:", userData); // Debug log
+      return {
+        name: userData.name || userData.displayName || userData.fullName || userData.email?.split('@')[0] || "User",
+        username: userData.username || userData.userName || userData.email || "@user",
+        profilePicture: userData.profilePicture || userData.avatar || userData.profileImage || userData.photoUrl,
+        // Include all potential properties that might exist in userData
+        ...userData
+      };
     }
     // Fallback for testing only if no userData exists
     return {
@@ -321,8 +328,25 @@ const HomeScreen = ({ navigation }) => {
           <NewsCard key={item.id} news={item} onPress={handleNewsPress} />
         ))}
 
-        {/* Our Sponsors */}
-        <SectionHeader title="OUR SPONSORS" />
+       
+
+        {/* Upcoming Tournaments */}
+        <SectionHeader
+          title="UPCOMING TOURNAMENTS"
+          showViewAll={true}
+          onViewAllPress={() => handleViewAllPress("tournaments")}
+        />
+        {TOURNAMENTS.filter((t) => t.status === "upcoming").map(
+          (tournament) => (
+            <TournamentCard
+              key={tournament.id}
+              tournament={tournament}
+              onPress={handleTournamentPress}
+            />
+          )
+        )}
+         {/* Our Sponsors */}
+         <SectionHeader title="OUR SPONSORS" />
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -340,22 +364,6 @@ const HomeScreen = ({ navigation }) => {
           style={sponsorStyles.sponsorsList}
         />
 
-        {/* Upcoming Tournaments */}
-        <SectionHeader
-          title="UPCOMING TOURNAMENTS"
-          showViewAll={true}
-          onViewAllPress={() => handleViewAllPress("tournaments")}
-        />
-        {TOURNAMENTS.filter((t) => t.status === "upcoming").map(
-          (tournament) => (
-            <TournamentCard
-              key={tournament.id}
-              tournament={tournament}
-              onPress={handleTournamentPress}
-            />
-          )
-        )}
-
         {/* Top Players */}
         <SectionHeader
           title="TOP PLAYERS"
@@ -370,6 +378,7 @@ const HomeScreen = ({ navigation }) => {
             onPress={handlePlayerPress}
           />
         ))}
+        
       </ScrollView>
     </SafeAreaView>
   );

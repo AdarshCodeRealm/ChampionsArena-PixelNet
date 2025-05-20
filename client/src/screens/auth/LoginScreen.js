@@ -56,11 +56,13 @@ const LoginScreen = ({ navigation }) => {
     setIsLoading(true);
 
     try {
+      console.log("Attempting login with:", email);
       const response = await loginWithPassword(email, password, rememberMe);
 
       if (response.success) {
         // Login successful - AuthContext will handle token and user state
-        console.log("Login successful");
+        console.log("Login successful, response:", response);
+        // No need to navigate - the AppNavigator will detect the userToken change
       } else {
         // Handle failed login
         Alert.alert('Login Failed', response.message || 'Invalid email or password');

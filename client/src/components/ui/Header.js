@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { globalStyles } from '../../styles/globalStyles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -9,13 +9,47 @@ const Header = ({ title, profile, onProfilePress }) => {
   // Check if this is a guest profile
   const isGuestProfile = profile && profile.id === 'guest';
   const navigation = useNavigation();
-  const { logout } = useAuth();
+  const { logout, userData, userToken } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  
+  // Add debugging logs to see what's happening with userData
+  useEffect(() => {
+    console.log('Header component userData:', userData);
+    console.log('Header component userToken:', userToken);
+    console.log('Header component profile:', profile);
+  }, [userData, userToken, profile]);
+  
+  // Get the display name from profile with multiple fallbacks
+  const getDisplayName = () => {
+    if (!profile) return '';
+    
+    // Try all possible property names for the name
+    return profile.name || 
+           profile.fullName || 
+           profile.displayName || 
+           profile.username ||
+           userData?.name ||
+           userData?.fullName ||
+           userData?.displayName ||
+           userData?.username ||
+           userData?.email?.split('@')[0] || 
+           'User';
+  };
 
   // Handle login button press
-  const handleLoginPress = () => {
-    // Instead of navigating directly, we'll use the auth context to log out
-    // This will trigger the navigation change at the AppNavigator level
-    logout();
+  const handleLoginPress = async () => {
+    // Prevent multiple clicks
+    if (loggingOut) return;
+    
+    try {
+      setLoggingOut(true);
+      // Logout the user - this will clear tokens and navigate
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -25,14 +59,14 @@ const Header = ({ title, profile, onProfilePress }) => {
       {/* Show profile button for regular users */}
       {profile && !isGuestProfile && (
         <View style={globalStyles.profileContainer}>
-          <Text style={globalStyles.profileName}>{profile.name || profile.username}</Text>
+          <Text style={globalStyles.profileName}>{getDisplayName()}</Text>
           <TouchableOpacity 
             style={globalStyles.profileButton}
             onPress={onProfilePress}
           >
-            {profile.profilePicture ? (
+            {profile.profilePicture || profile.avatar || profile.photoUrl ? (
               <Image 
-                source={{ uri: profile.profilePicture }} 
+                source={{ uri: profile.profilePicture || profile.avatar || profile.photoUrl }} 
                 style={globalStyles.profileAvatar} 
               />
             ) : (
@@ -62,9 +96,16 @@ const Header = ({ title, profile, onProfilePress }) => {
         <TouchableOpacity 
           style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(13, 132, 195, 0.2)', padding: 6, borderRadius: 20 }}
           onPress={handleLoginPress}
+          disabled={loggingOut}
         >
-          <Text style={{ color: '#fff', marginRight: 6, fontSize: 14 }}>Login</Text>
-          <Ionicons name="log-in-outline" size={18} color="#fff" />
+          {loggingOut ? (
+            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 6 }} />
+          ) : (
+            <>
+              <Text style={{ color: '#fff', marginRight: 6, fontSize: 14 }}>Login</Text>
+              <Ionicons name="log-in-outline" size={18} color="#fff" />
+            </>
+          )}
         </TouchableOpacity>
       )}
     </View>
