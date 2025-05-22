@@ -10,7 +10,8 @@ import {
   refreshAccessToken,
   changePassword,
   getCurrentPlayer,
-  updatePlayerProfile
+  updatePlayerProfile,
+  updatePrivacySettings
 } from '../controllers/player.auth.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
@@ -39,5 +40,7 @@ router.post('/logout', logoutPlayer);
 router.get('/me', getCurrentPlayer);
 router.put('/change-password', changePassword);
 router.put('/update-profile', upload.single('profilePicture'), updatePlayerProfile);
+router.put('/profile-icon-update', upload.single('profilePicture'), updatePlayerProfile);
+router.put('/privacy-settings', updatePrivacySettings);
 
 export default router;

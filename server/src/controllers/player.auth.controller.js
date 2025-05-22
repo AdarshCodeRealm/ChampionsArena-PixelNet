@@ -766,6 +766,33 @@ const updatePlayerProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, updatedPlayer, "Profile updated successfully"))
 })
 
+/**
+ * Controller to update player privacy settings
+ */
+const updatePrivacySettings = asyncHandler(async (req, res) => {
+  const player = req.player
+  const { isProfilePublic, showEmail, showMobileNumber } = req.body
+
+  if (!player) {
+    throw new ApiError(401, "Unauthorized request")
+  }
+
+  // Update privacy settings
+  player.privacySettings = {
+    isProfilePublic: isProfilePublic !== undefined ? isProfilePublic : player.privacySettings?.isProfilePublic || true,
+    showEmail: showEmail !== undefined ? showEmail : player.privacySettings?.showEmail || false,
+    showMobileNumber: showMobileNumber !== undefined ? showMobileNumber : player.privacySettings?.showMobileNumber || false
+  }
+
+  await player.save({ validateBeforeSave: false })
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, 
+      { privacySettings: player.privacySettings }, 
+      "Privacy settings updated successfully"))
+})
+
 export {
   registerPlayer,
   verifyEmail,
@@ -778,4 +805,5 @@ export {
   getCurrentPlayer,
   updatePlayerProfile,
   loginPlayer,
+  updatePrivacySettings
 }

@@ -20,7 +20,7 @@ const CURRENT_ENV = ENV.DEVELOPMENT;
 // Base URLs for different environments
 const BASE_URLS = {
   // [ENV.DEVELOPMENT]: 'http://192.168.175.119:8000',
-  [ENV.DEVELOPMENT]: 'http://192.168.162.119:8000',
+  [ENV.DEVELOPMENT]: 'http://192.168.173.119:8000',
   [ENV.STAGING]: 'http://staging-api.championsarena.com',
   [ENV.PRODUCTION]: 'https://api.championsarena.com'
 };
@@ -77,6 +77,8 @@ export const AUTH_ROUTES = {
   
   // Profile management
   UPDATE_PROFILE: '/player-auth/update-profile',
+  PROFILE_ICON_UPDATE: '/player-auth/profile-icon-update',
+  PRIVACY_SETTINGS: '/player-auth/privacy-settings',
   
   // Organizer routes
   ORGANIZER_AUTH: '/auth/organizer/initiate-otp-auth',

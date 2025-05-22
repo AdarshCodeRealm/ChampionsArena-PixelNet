@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { globalStyles } from '../../styles/globalStyles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -9,15 +9,8 @@ const Header = ({ title, profile, onProfilePress }) => {
   // Check if this is a guest profile
   const isGuestProfile = profile && profile.id === 'guest';
   const navigation = useNavigation();
-  const { logout, userData, userToken } = useAuth();
+  const { logout, userToken } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  
-  // Add debugging logs to see what's happening with userData
-  useEffect(() => {
-    console.log('Header component userData:', userData);
-    console.log('Header component userToken:', userToken);
-    console.log('Header component profile:', profile);
-  }, [userData, userToken, profile]);
   
   // Get the display name from profile with multiple fallbacks
   const getDisplayName = () => {
@@ -28,11 +21,6 @@ const Header = ({ title, profile, onProfilePress }) => {
            profile.fullName || 
            profile.displayName || 
            profile.username ||
-           userData?.name ||
-           userData?.fullName ||
-           userData?.displayName ||
-           userData?.username ||
-           userData?.email?.split('@')[0] || 
            'User';
   };
 

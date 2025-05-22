@@ -19,7 +19,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
-  const { loginWithPassword, authError } = useAuth();
+  const { loginWithPassword, authError, forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -75,18 +75,33 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (!email.trim() || !validateEmail(email)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address first');
       return;
     }
     
-    // Navigate to forgot password screen with the email
-    navigation.navigate('OtpVerification', { 
-      email, 
-      flowType: 'passwordReset',
-      title: 'Reset Password'
-    });
+    setIsLoading(true);
+    
+    try {
+      // First call the forgot password API to request the OTP
+      const response = await forgotPassword(email);
+      
+      if (response.success) {
+        // Only navigate to OTP screen if the API call was successful
+        navigation.navigate('OtpVerification', { 
+          email, 
+          flowType: 'passwordReset',
+          title: 'Reset Password'
+        });
+      } else {
+        Alert.alert('Password Reset Failed', response.message || 'Failed to send password reset code. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', authError || error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const openPrivacyPolicy = () => {

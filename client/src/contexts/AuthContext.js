@@ -14,6 +14,15 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [refreshToken, setRefreshToken] = useState(null);
   const [authError, setAuthError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // useEffect to check auth status on mount - only once
+  useEffect(() => {
+    if (!isInitialized) {
+      isLoggedIn();
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
 
   // Initialize axios with auth headers
   const setupAxiosInterceptors = (token) => {
@@ -256,14 +265,20 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       });
+      console.log('Login response:', response);
       if (response.data.success) {
-        const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
-        console.log("Login successful - user data:", user);
+        // Extract player data from response - server returns it as "player" not "user"
+        const { accessToken, refreshToken: newRefreshToken, player } = response.data.data;
+        console.log("Login successful - player data:", player);
         
         // First update the state directly for immediate effect
         setUserToken(accessToken);
         setRefreshToken(newRefreshToken);
-        setUserData(user);
+        
+        // Use player data instead of user
+        if (player) {
+          setUserData(player);
+        }
         
         // Setup axios interceptors
         setupAxiosInterceptors(accessToken);
@@ -272,14 +287,22 @@ export const AuthProvider = ({ children }) => {
         setTimeout(async () => {
           try {
             await storeAuthTokens(accessToken, newRefreshToken, rememberMe);
-            await AsyncStorage.setItem('user', JSON.stringify(user));
-            console.log("Auth data stored successfully");
+            
+            // Store player data instead of user
+            if (player) {
+              await AsyncStorage.setItem('user', JSON.stringify(player));
+              console.log("Player data stored successfully");
+            } else {
+              console.log("No player data available from login response, will fetch from server");
+              // Fetch user data from server since it wasn't included in login response
+              await checkCurrentUser();
+            }
           } catch (storageError) {
             console.error('Error storing auth data:', storageError);
           }
         }, 0);
         
-        return { success: true, user };
+        return { success: true, user: player };
       }
       return { success: false, message: 'Login failed' };
     } catch (error) {
@@ -391,7 +414,7 @@ export const AuthProvider = ({ children }) => {
         try {
           // Send the token in the Authorization header
           await axios.post(
-            `${API_URL}${AUTH_ROUTES.LOGOUT}`, 
+            `${API_URL}/player-auth/logout`, 
             {}, // Empty body
             {
               headers: {
@@ -463,22 +486,38 @@ export const AuthProvider = ({ children }) => {
         refreshTokenValue = await AsyncStorage.getItem('refreshToken');
       }
       
-      const userData = await AsyncStorage.getItem('user');
+      const userDataStr = await AsyncStorage.getItem('user');
       
       if (accessToken) {
         // Set tokens and user data
         setUserToken(accessToken);
         setRefreshToken(refreshTokenValue);
         
-        if (userData) {
-          setUserData(JSON.parse(userData));
+        if (userDataStr) {
+          try {
+            const parsedUserData = JSON.parse(userDataStr);
+            setUserData(parsedUserData);
+            console.log('User data loaded from storage:', parsedUserData);
+          } catch (parseError) {
+            console.error('Error parsing user data:', parseError);
+          }
+        } else {
+          // If we have a token but no user data, fetch it from the server
+          try {
+            const currentUser = await checkCurrentUser();
+            if (!currentUser) {
+              // If we couldn't get the user data, clear auth
+              console.log('No user data available, clearing auth');
+              await clearAuthData();
+            }
+          } catch (fetchError) {
+            console.error('Error fetching current user:', fetchError);
+            await clearAuthData();
+          }
         }
         
         // Setup axios interceptors
         setupAxiosInterceptors(accessToken);
-        
-        // Optionally, verify token with server
-        await checkCurrentUser();
       }
     } catch (error) {
       console.log('isLoggedIn error:', error);
@@ -488,44 +527,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Check auth status on app load
-  useEffect(() => {
-    isLoggedIn();
-  }, []);
-
   return (
-    <AuthContext.Provider
-      value={{
-        isLoading,
-        userToken,
-        userData,
-        authError,
-        login,
-        loginWithPassword,
-        registerWithOtp,
-        verifyOtp,
-        resendOtp,
-        forgotPassword,
-        resetPassword,
-        changePassword,
-        updateProfile,
-        logout,
-        isLoggedIn,
-        checkCurrentUser,
-      }}
-    >
+    <AuthContext.Provider value={{ 
+      isLoading, 
+      userToken, 
+      userData, 
+      refreshToken, 
+      authError, 
+      login, 
+      registerWithOtp, 
+      verifyOtp, 
+      resendOtp, 
+      loginWithPassword, 
+      forgotPassword, 
+      resetPassword, 
+      changePassword, 
+      updateProfile, 
+      logout, 
+      checkCurrentUser, 
+      isLoggedIn 
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use auth context
+// Custom hook to use the Auth context
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };
-
-export default AuthContext;

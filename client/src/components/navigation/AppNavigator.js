@@ -12,6 +12,7 @@ import ManageMatchesScreen from '../../components/screens/ManageMatchesScreen';
 import LoginScreen from '../../screens/auth/LoginScreen';
 import RegisterScreen from '../../screens/auth/RegisterScreen';
 import OtpVerificationScreen from '../../screens/auth/OtpVerificationScreen';
+import UpdateProfileScreen from '../../screens/profile/UpdateProfileScreen';
 import { colors } from '../../styles/globalStyles';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -27,6 +28,7 @@ const ProfileStackScreen = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
     <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
     <ProfileStack.Screen name="ManageMatches" component={ManageMatchesScreen} />
+    <ProfileStack.Screen name="UpdateProfile" component={UpdateProfileScreen} />
   </ProfileStack.Navigator>
 );
 

@@ -45,6 +45,20 @@ const playerAuthSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    privacySettings: {
+      isProfilePublic: {
+        type: Boolean,
+        default: true,
+      },
+      showEmail: {
+        type: Boolean,
+        default: false,
+      },
+      showMobileNumber: {
+        type: Boolean,
+        default: false,
+      },
+    },
     verificationToken: {
       type: String,
     },

@@ -217,7 +217,6 @@ const HomeScreen = ({ navigation }) => {
   // Replace hardcoded user profile with a function to get profile data
   const getProfileData = () => {
     if (userData) {
-      console.log("HomeScreen userData:", userData); // Debug log
       return {
         name: userData.name || userData.displayName || userData.fullName || userData.email?.split('@')[0] || "User",
         username: userData.username || userData.userName || userData.email || "@user",

@@ -596,6 +596,70 @@ class AuthService {
   }
 
   /**
+   * Update profile icon
+   * 
+   * @param {Object} profileImage - Profile image object with uri property
+   * @param {string} token - Authentication token
+   * @returns {Promise<Object>} - Promise with updated user data
+   */
+  async updateProfileIcon(profileImage, token = null) {
+    try {
+      // If no token provided, try to get from storage
+      if (!token) {
+        const authData = await this.getStoredAuthData();
+        token = authData?.accessToken;
+      }
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      if (!profileImage) {
+        throw new Error("Profile image is required");
+      }
+
+      // Create FormData for image upload
+      const formData = new FormData();
+      
+      // Add profile image
+      const imageUri = profileImage.uri;
+      const filename = imageUri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image';
+      
+      formData.append('profilePicture', {
+        uri: imageUri,
+        name: filename,
+        type,
+      });
+
+      const response = await axios.put(
+        `${API_URL}${AUTH_ROUTES.PROFILE_ICON_UPDATE}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      // Update stored user data with new profile picture
+      if (response.data.success) {
+        const authData = await this.getStoredAuthData();
+        if (authData && authData.user) {
+          authData.user.profilePicture = response.data.data.profilePicture;
+          await this.storeAuthData(authData);
+        }
+      }
+
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Handle API errors
    * @param {Error} error - Error object
    * @returns {Error} - Error with formatted message
@@ -634,4 +698,4 @@ const authService = new AuthService();
 // Set up interceptors for token refresh
 authService.setupAxiosInterceptors();
 
-export default authService; 
+export default authService;
