@@ -1,8 +1,8 @@
-import Organizer from '../models/organizer.model.js';
+import Admin from '../models/admin.model.js';
 import { verifyToken } from '../utils/token.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
-export const organizerMiddleware = async (req, res, next) => {
+export const adminMiddleware = async (req, res, next) => {
   try {
     // Get token from header OR cookie
     let token;
@@ -33,35 +33,21 @@ export const organizerMiddleware = async (req, res, next) => {
       );
     }
     
-    // Find organizer
-    const organizer = await Organizer.findById(decoded._id).select("-password -otp -otpExpiry");
+    // Find admin
+    const admin = await Admin.findById(decoded._id).select("-password");
     
-    if (!organizer) {
+    if (!admin) {
       return res.status(401).json(
-        new ApiResponse(401, null, "Unauthorized: Organizer not found")
+        new ApiResponse(401, null, "Unauthorized: Admin not found")
       );
     }
     
-    // Check if organizer is verified
-    if (!organizer.isVerified) {
-      return res.status(401).json(
-        new ApiResponse(401, null, "Unauthorized: Account not verified")
-      );
-    }
-    
-    // Check if organizer is approved
-    if (!organizer.isApproved) {
-      return res.status(403).json(
-        new ApiResponse(403, null, "Forbidden: Your organizer account is pending approval. You can create tournaments once approved.")
-      );
-    }
-    
-    // Attach organizer to request
-    req.organizer = organizer;
+    // Attach admin to request
+    req.admin = admin;
     next();
     
   } catch (error) {
-    console.error("Organizer middleware error:", error);
+    console.error("Admin middleware error:", error);
     return res.status(500).json(
       new ApiResponse(500, null, "Internal server error during authentication")
     );
