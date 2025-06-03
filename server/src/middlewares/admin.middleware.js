@@ -53,3 +53,51 @@ export const adminMiddleware = async (req, res, next) => {
     );
   }
 };
+
+// Middleware to check if user is an admin (any level)
+export const isAdmin = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json(
+        new ApiResponse(401, null, "Unauthorized: Authentication required")
+      );
+    }
+    
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      return res.status(403).json(
+        new ApiResponse(403, null, "Forbidden: Admin access required")
+      );
+    }
+    
+    next();
+  } catch (error) {
+    console.error("isAdmin middleware error:", error);
+    return res.status(500).json(
+      new ApiResponse(500, null, "Internal server error during authorization")
+    );
+  }
+};
+
+// Middleware to check if user is an admin or superadmin
+export const isAdminOrSuperAdmin = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json(
+        new ApiResponse(401, null, "Unauthorized: Authentication required")
+      );
+    }
+    
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      return res.status(403).json(
+        new ApiResponse(403, null, "Forbidden: Admin or SuperAdmin access required")
+      );
+    }
+    
+    next();
+  } catch (error) {
+    console.error("isAdminOrSuperAdmin middleware error:", error);
+    return res.status(500).json(
+      new ApiResponse(500, null, "Internal server error during authorization")
+    );
+  }
+};

@@ -15,7 +15,7 @@ const ENV = {
 };
 
 // Current environment
-const CURRENT_ENV = ENV.PRODUCTION;
+const CURRENT_ENV = ENV.DEVELOPMENT;
 
 // Base URLs for different environments
 const BASE_URLS = {

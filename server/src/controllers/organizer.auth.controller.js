@@ -68,6 +68,7 @@ const registerOrganizer = asyncHandler(async (req, res) => {
 
   // 8. Upload Aadhar image to Cloudinary
   const aadharImage = await uploadOnCloudinary(aadharImageLocalPath);
+  console.log(aadharImage)
   if (!aadharImage.url) {
     throw new ApiError(500, "Error uploading Aadhar image");
   }
@@ -317,10 +318,125 @@ const logoutOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Logged out successfully"));
 });
 
+/**
+ * Controller to update organizer profile
+ */
+const updateProfile = asyncHandler(async (req, res) => {
+  const organizerId = req.organizer?._id;
+  
+  // 1. Validate if organizer exists
+  if (!organizerId) {
+    throw new ApiError(401, "Unauthorized access");
+  }
+
+  // 2. Get update data from request
+  const {
+    name,
+    mobileNumber,
+    companyName,
+    companyAddress,
+    companyRegistrationNumber,
+    paymentAddress
+  } = req.body;
+
+  // 3. Find organizer to update
+  const organizer = await Organizer.findById(organizerId);
+  if (!organizer) {
+    throw new ApiError(404, "Organizer not found");
+  }
+
+  // 4. Update fields if provided
+  if (name) organizer.name = name;
+  if (mobileNumber) {
+    // Validate mobile number (10 digits)
+    if (!/^\d{10}$/.test(mobileNumber)) {
+      throw new ApiError(400, "Mobile number must be 10 digits");
+    }
+    organizer.mobileNumber = mobileNumber;
+  }
+  if (companyName) organizer.companyName = companyName;
+  if (companyAddress) organizer.companyAddress = companyAddress;
+  if (companyRegistrationNumber) organizer.companyRegistrationNumber = companyRegistrationNumber;
+  if (paymentAddress !== undefined) organizer.paymentAddress = paymentAddress;
+
+  // 5. Handle profile picture update if provided
+  if (req.file) {
+    // Delete old profile picture if it exists
+    if (organizer.profilePicture) {
+      const publicId = organizer.profilePicture.split("/").pop().split(".")[0];
+      await deleteFromCloudinary(publicId);
+    }
+    
+    // Upload new profile picture
+    const profilePictureUploaded = await uploadOnCloudinary(req.file.path);
+    if (profilePictureUploaded.url) {
+      organizer.profilePicture = profilePictureUploaded.url;
+    }
+  }
+
+  // 6. Save updated organizer
+  await organizer.save({ validateBeforeSave: false });
+
+  // 7. Return updated organizer data (excluding sensitive fields)
+  const updatedOrganizerData = {
+    _id: organizer._id,
+    name: organizer.name,
+    email: organizer.email,
+    mobileNumber: organizer.mobileNumber,
+    companyName: organizer.companyName,
+    companyAddress: organizer.companyAddress,
+    companyRegistrationNumber: organizer.companyRegistrationNumber,
+    paymentAddress: organizer.paymentAddress,
+    profilePicture: organizer.profilePicture,
+    isApproved: organizer.isApproved
+  };
+
+  // 8. Send success response
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      updatedOrganizerData,
+      "Profile updated successfully"
+    )
+  );
+});
+
+/**
+ * Controller to get current organizer profile
+ */
+const getCurrentOrganizer = asyncHandler(async (req, res) => {
+  const organizerId = req.organizer?._id;
+  
+  // 1. Validate if organizer exists
+  if (!organizerId) {
+    throw new ApiError(401, "Unauthorized access");
+  }
+
+  // 2. Find organizer by ID
+  const organizer = await Organizer.findById(organizerId).select(
+    "-password -refreshToken -passwordResetToken -passwordResetExpires -verificationToken"
+  );
+  
+  if (!organizer) {
+    throw new ApiError(404, "Organizer not found");
+  }
+
+  // 3. Send response with organizer data
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      organizer,
+      "Organizer details fetched successfully"
+    )
+  );
+});
+
 export {
   registerOrganizer,
   verifyOTP,
   loginOrganizer,
   refreshAccessToken,
-  logoutOrganizer
+  logoutOrganizer,
+  updateProfile,
+  getCurrentOrganizer
 };

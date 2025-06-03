@@ -1,0 +1,1411 @@
+{
+	"info": {
+		"_postman_id": "e3d5f4c2-a8b7-4f21-9d63-52c8b4e0c123",
+		"name": "Champions Arena Complete API",
+		"description": "Comprehensive API collection for Champions Arena Tournament App that includes player authentication, organizer authentication, tournament management, and admin functions.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Player Authentication",
+			"item": [
+				{
+					"name": "Test Route",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/test",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"test"
+							]
+						},
+						"description": "Test route to check if the player auth API is working properly"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Player",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Test Player",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "testplayer@example.com",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "testgamer123",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "Password123!",
+									"type": "text"
+								},
+								{
+									"key": "uid",
+									"value": "123456789",
+									"type": "text"
+								},
+								{
+									"key": "mobileNumber",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "isOtpVerified",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/register",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"register"
+							]
+						},
+						"description": "Register a new player with personal details, FreeFire UID, and optional mobile number."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Player",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\",\n    \"password\": \"Password123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"login"
+							]
+						},
+						"description": "Login with player email and password. The test script automatically saves the returned tokens to environment variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Email with OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\",\n    \"otp\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/verify-email",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"verify-email"
+							]
+						},
+						"description": "Verify email address with OTP code received via email"
+					},
+					"response": []
+				},
+				{
+					"name": "Resend OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/resend-otp",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"resend-otp"
+							]
+						},
+						"description": "Request a new OTP to be sent to email address"
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testplayer@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/forgot-password",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"forgot-password"
+							]
+						},
+						"description": "Request password reset link"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"7a9d6c8b1e3f5a2d4c6b8a0e2d4f6a8c\",\n    \"newPassword\": \"NewPassword456!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/reset-password",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"reset-password"
+							]
+						},
+						"description": "Reset password using token received via email"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{REFRESH_TOKEN}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/refresh-token",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"refresh-token"
+							]
+						},
+						"description": "Get new access token using refresh token"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout Player",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/logout",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"logout"
+							]
+						},
+						"description": "Logout and invalidate access tokens"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current Player",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/me",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"me"
+							]
+						},
+						"description": "Get authenticated player's profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"oldPassword\": \"Password123!\",\n    \"newPassword\": \"NewPassword456!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/change-password",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"change-password"
+							]
+						},
+						"description": "Change current user's password (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Player Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Updated Player Name",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "upgradedgamer",
+									"type": "text"
+								},
+								{
+									"key": "mobileNumber",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/update-profile",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"update-profile"
+							]
+						},
+						"description": "Update authenticated player's profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile Picture",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/profile-icon-update",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"profile-icon-update"
+							]
+						},
+						"description": "Update player's profile picture only"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Privacy Settings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"showEmail\": false,\n    \"showMobileNumber\": false,\n    \"showProfileToPublic\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/player-auth/privacy-settings",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"player-auth",
+								"privacy-settings"
+							]
+						},
+						"description": "Update player's privacy settings"
+					},
+					"response": []
+				}
+			],
+			"description": "Player authentication endpoints for registration, login, profile management, and security features."
+		},
+		{
+			"name": "Organizer Authentication",
+			"item": [
+				{
+					"name": "Register Organizer",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Test Organizer",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "testorganizer@example.com",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "Password123!",
+									"type": "text"
+								},
+								{
+									"key": "companyName",
+									"value": "Test Events Company",
+									"type": "text"
+								},
+								{
+									"key": "mobileNumber",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "aadharImage",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/organizer-auth/register",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"organizer-auth",
+								"register"
+							]
+						},
+						"description": "Register a new tournament organizer with company details and verification documents"
+					},
+					"response": []
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testorganizer@example.com\",\n    \"otp\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/organizer-auth/verify-otp",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"organizer-auth",
+								"verify-otp"
+							]
+						},
+						"description": "Verify organizer email with OTP code"
+					},
+					"response": []
+				},
+				{
+					"name": "Login Organizer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ORGANIZER_ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('ORGANIZER_REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testorganizer@example.com\",\n    \"password\": \"Password123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/organizer-auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"organizer-auth",
+								"login"
+							]
+						},
+						"description": "Login with organizer email and password"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ORGANIZER_ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('ORGANIZER_REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{ORGANIZER_REFRESH_TOKEN}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/organizer-auth/refresh-token",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"organizer-auth",
+								"refresh-token"
+							]
+						},
+						"description": "Get new access token for organizer using refresh token"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout Organizer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ORGANIZER_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/organizer-auth/logout",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"organizer-auth",
+								"logout"
+							]
+						},
+						"description": "Logout organizer and invalidate access tokens"
+					},
+					"response": []
+				}
+			],
+			"description": "Organizer authentication endpoints for registration, verification, login, and profile management."
+		},
+		{
+			"name": "Tournament Management",
+			"item": [
+				{
+					"name": "Get All Tournaments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments"
+							]
+						},
+						"description": "List all available tournaments"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tournament By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/:tournamentId",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								":tournamentId"
+							],
+							"variable": [
+								{
+									"key": "tournamentId",
+									"value": "64f5a7b3c8e2d9a1b0f3d21e",
+									"description": "ID of the tournament to retrieve"
+								}
+							]
+						},
+						"description": "Get details of a specific tournament by its ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tournament Teams",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/:tournamentId/teams",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								":tournamentId",
+								"teams"
+							],
+							"variable": [
+								{
+									"key": "tournamentId",
+									"value": "64f5a7b3c8e2d9a1b0f3d21e",
+									"description": "ID of the tournament to get teams for"
+								}
+							]
+						},
+						"description": "Get all teams registered for a specific tournament"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Team for Tournament",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"teamName\": \"Alpha Squad\",\n    \"teamMembers\": [\n        {\n            \"name\": \"Player 1\",\n            \"uid\": \"123456789\",\n            \"role\": \"Leader\"\n        },\n        {\n            \"name\": \"Player 2\",\n            \"uid\": \"234567890\",\n            \"role\": \"Member\"\n        },\n        {\n            \"name\": \"Player 3\",\n            \"uid\": \"345678901\",\n            \"role\": \"Member\"\n        },\n        {\n            \"name\": \"Player 4\",\n            \"uid\": \"456789012\",\n            \"role\": \"Member\"\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/:tournamentId/register",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								":tournamentId",
+								"register"
+							],
+							"variable": [
+								{
+									"key": "tournamentId",
+									"value": "64f5a7b3c8e2d9a1b0f3d21e",
+									"description": "ID of the tournament to register for"
+								}
+							]
+						},
+						"description": "Register a team for a tournament (requires player authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Process Payment",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"transactionId\": \"pay_123456789abcdef\",\n    \"amount\": 100,\n    \"paymentMethod\": \"UPI\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/teams/:teamId/payment",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								"teams",
+								":teamId",
+								"payment"
+							],
+							"variable": [
+								{
+									"key": "teamId",
+									"value": "64f5a8c3d9b2e3a7f6c1d8e5",
+									"description": "ID of the team making the payment"
+								}
+							]
+						},
+						"description": "Process tournament registration payment for a team"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Teams",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/my-teams",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								"my-teams"
+							]
+						},
+						"description": "Get all teams registered by the current authenticated player"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Tournament",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ORGANIZER_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Champions Cup 2023\",\n    \"description\": \"The ultimate battle royale tournament for Free Fire players\",\n    \"game\": \"Free Fire\",\n    \"startDate\": \"2023-10-15T10:00:00.000Z\",\n    \"endDate\": \"2023-10-16T18:00:00.000Z\",\n    \"registrationDeadline\": \"2023-10-10T23:59:59.000Z\",\n    \"prizePool\": 10000,\n    \"entryFee\": 100,\n    \"maxTeams\": 48,\n    \"teamSize\": 4,\n    \"format\": \"Battle Royale\",\n    \"rules\": \"Standard tournament rules apply\",\n    \"status\": \"upcoming\",\n    \"image\": \"https://example.com/tournament.jpg\",\n    \"location\": \"Online\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments"
+							]
+						},
+						"description": "Create a new tournament (requires organizer authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organizer Tournaments",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ORGANIZER_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/organizer/tournaments",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								"organizer",
+								"tournaments"
+							]
+						},
+						"description": "Get all tournaments created by the authenticated organizer"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Tournament",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ORGANIZER_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Champions Cup 2023 - Updated\",\n    \"description\": \"The ultimate battle royale tournament for Free Fire players - Updated description\",\n    \"prizePool\": 12000,\n    \"status\": \"ongoing\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/:tournamentId",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								":tournamentId"
+							],
+							"variable": [
+								{
+									"key": "tournamentId",
+									"value": "64f5a7b3c8e2d9a1b0f3d21e",
+									"description": "ID of the tournament to update"
+								}
+							]
+						},
+						"description": "Update tournament details (requires organizer authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tournament",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ORGANIZER_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/tournaments/:tournamentId",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"tournaments",
+								":tournamentId"
+							],
+							"variable": [
+								{
+									"key": "tournamentId",
+									"value": "64f5a7b3c8e2d9a1b0f3d21e",
+									"description": "ID of the tournament to delete"
+								}
+							]
+						},
+						"description": "Delete a tournament (requires organizer authentication)"
+					},
+					"response": []
+				}
+			],
+			"description": "Tournament management endpoints for creating, updating, and managing tournaments."
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ADMIN_ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('ADMIN_REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@championsarena.com\",\n    \"password\": \"Admin123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/admin/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"login"
+							]
+						},
+						"description": "Login as administrator"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Admin Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.accessToken) {",
+									"    pm.environment.set('ADMIN_ACCESS_TOKEN', jsonData.data.accessToken);",
+									"    pm.environment.set('ADMIN_REFRESH_TOKEN', jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{ADMIN_REFRESH_TOKEN}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/admin/refresh-token",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"refresh-token"
+							]
+						},
+						"description": "Get new admin access token using refresh token"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout Admin",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ADMIN_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/admin/logout",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"logout"
+							]
+						},
+						"description": "Logout admin and invalidate access tokens"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Organizer Requests",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ADMIN_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/admin/organizers/pending",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"organizers",
+								"pending"
+							]
+						},
+						"description": "Get list of pending organizer verification requests"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Approved Organizers",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ADMIN_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/admin/organizers/approved",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"organizers",
+								"approved"
+							]
+						},
+						"description": "Get list of approved organizers"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organizer Details",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ADMIN_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/admin/organizers/:organizerId",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"organizers",
+								":organizerId"
+							],
+							"variable": [
+								{
+									"key": "organizerId",
+									"value": "64f5a9d2e7b1c0f3a8d5e2b1",
+									"description": "ID of the organizer to view details for"
+								}
+							]
+						},
+						"description": "Get detailed information about a specific organizer"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Organizer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ADMIN_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/admin/organizers/:organizerId/approve",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"organizers",
+								":organizerId",
+								"approve"
+							],
+							"variable": [
+								{
+									"key": "organizerId",
+									"value": "64f5a9d2e7b1c0f3a8d5e2b1",
+									"description": "ID of the organizer to approve"
+								}
+							]
+						},
+						"description": "Approve an organizer's verification request"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Organizer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ADMIN_ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Incomplete documentation provided\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/admin/organizers/:organizerId/reject",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"admin",
+								"organizers",
+								":organizerId",
+								"reject"
+							],
+							"variable": [
+								{
+									"key": "organizerId",
+									"value": "64f5a9d2e7b1c0f3a8d5e2b1",
+									"description": "ID of the organizer to reject"
+								}
+							]
+						},
+						"description": "Reject an organizer's verification request with a reason"
+					},
+					"response": []
+				}
+			],
+			"description": "Admin endpoints for managing organizers, tournaments, and system settings."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:8000/api/v1",
+			"type": "string"
+		}
+	]
+}

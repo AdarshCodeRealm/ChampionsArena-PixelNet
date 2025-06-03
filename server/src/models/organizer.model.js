@@ -47,6 +47,11 @@ const organizerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    paymentAddress: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     companyRegistrationNumber: {
       type: String,
       trim: true,

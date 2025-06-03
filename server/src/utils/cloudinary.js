@@ -9,6 +9,7 @@ cloudinary.config({
 //localFilePath = req.files.filename[0].path    --> filename getting when multer middleware name in route
 const uploadOnCloudinary = async (localFilePath) => {
   try {
+    console.log("localFilePath:", localFilePath);
     if (!localFilePath) return null
     //upload the file on cloudinary
     const response = await cloudinary.uploader.upload(localFilePath, {

@@ -1,0 +1,56 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&family=Lato:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap');
+
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles below this line */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+/* Global CSS Reset */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  /* overflow: hidden; */
+}
+
+body {
+  box-sizing: border-box;
+}
+
+/* Custom utilities */
+@layer utilities {
+  .bg-gradient-custom {
+    @apply bg-gradient-to-r from-blue-600 to-blue-800;
+  }
+}
+
+/* Custom Scrollbar Styles */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #ff6a1f #1a1a1a;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #ff6a1f;
+  border-radius: 8px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 8px;
+}

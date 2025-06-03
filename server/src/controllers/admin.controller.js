@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateTokens, verifyRefreshToken } from "../utils/token.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 /**
  * Controller for admin login
@@ -269,6 +270,108 @@ const getApprovedOrganizers = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * Get all players
+ */
+const getAllPlayers = asyncHandler(async (req, res) => {
+  const playerAuthModel = await import('../models/playerAuth.model.js');
+  const PlayerAuth = playerAuthModel.default;
+  
+  const players = await PlayerAuth.find()
+    .select("-password -refreshToken")
+    .sort({ createdAt: -1 });
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      players,
+      "All players fetched successfully"
+    )
+  );
+});
+
+/**
+ * Admin creates an organizer directly (isVerified and isApproved true)
+ */
+export const createOrganizerByAdmin = asyncHandler(async (req, res) => {
+  const {
+    name,
+    email,
+    password,
+    mobileNumber,
+    aadharNumber,
+    companyName,
+    companyAddress,
+    companyRegistrationNumber
+  } = req.body;
+
+  // Validate required fields
+  if (!name || !email || !password || !mobileNumber || !aadharNumber || !companyName || !companyAddress) {
+    throw new ApiError(400, "All required fields must be provided");
+  }
+
+  if (!/^\d{12}$/.test(aadharNumber)) {
+    throw new ApiError(400, "Aadhar number must be exactly 12 digits");
+  }
+  if (!/^\d{10}$/.test(mobileNumber)) {
+    throw new ApiError(400, "Mobile number must be 10 digits");
+  }
+
+  // Check for existing organizer
+  const existingOrganizer = await Organizer.findOne({ email });
+  if (existingOrganizer) {
+    throw new ApiError(409, "Organizer with this email already exists");
+  }
+  const aadharExists = await Organizer.findOne({ aadharNumber });
+  if (aadharExists) {
+    throw new ApiError(409, "Aadhar number is already registered");
+  }
+
+  // Handle file upload for Aadhar image
+  const aadharImageLocalPath = req.files?.aadharImage?.[0]?.path;
+  console.log('Aadhar image local path:', aadharImageLocalPath);
+
+  if (!aadharImageLocalPath) {
+    throw new ApiError(400, "Aadhar image is required");
+  }
+  const aadharImage = await uploadOnCloudinary(aadharImageLocalPath);
+  console.log('Cloudinary upload result:', aadharImage);
+  if (!aadharImage?.url) {
+    throw new ApiError(500, "Error uploading Aadhar image");
+  }
+
+  // Handle profile picture if provided
+  let profilePicture = null;
+  if (req.files?.profilePicture?.[0]?.path) {
+    const profilePictureUploaded = await uploadOnCloudinary(req.files.profilePicture[0].path);
+    if (profilePictureUploaded?.url) {
+      profilePicture = profilePictureUploaded.url;
+    }
+  }
+
+  // Create organizer (isVerified and isApproved true)
+  const organizer = await Organizer.create({
+    name,
+    email,
+    password,
+    mobileNumber,
+    aadharNumber,
+    aadharImage: aadharImage.url,
+    companyName,
+    companyAddress,
+    companyRegistrationNumber: companyRegistrationNumber || "",
+    profilePicture,
+    isVerified: true,
+    isApproved: true,
+    approvedBy: req.admin?._id,
+    approvalDate: new Date()
+  });
+
+  return res.status(201).json(
+    new ApiResponse(201, { organizer }, "Organizer created and approved by admin.")
+  );
+});
+
 export {
   loginAdmin,
   refreshAccessToken,
@@ -277,5 +380,6 @@ export {
   getOrganizerDetails,
   approveOrganizer,
   rejectOrganizer,
-  getApprovedOrganizers
+  getApprovedOrganizers,
+  getAllPlayers
 };
