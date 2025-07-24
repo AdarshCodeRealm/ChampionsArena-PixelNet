@@ -22,7 +22,8 @@ const registerOrganizer = asyncHandler(async (req, res) => {
     aadharNumber,
     companyName,
     companyAddress,
-    companyRegistrationNumber
+    companyRegistrationNumber,
+    upiAddress
   } = req.body;
 
   // 2. Validate required fields
@@ -102,15 +103,12 @@ const registerOrganizer = asyncHandler(async (req, res) => {
     otp: {
       code: otp,
       expiresAt
-    }
+    },
+    upiAddress: upiAddress || '',
   });
 
   // 12. Send verification email with OTP
-  await sendVerificationEmail(email, {
-    name,
-    otp,
-    userType: "organizer"
-  });
+  await sendVerificationEmail(email, otp);
 
   // 13. Return success response
   return res.status(201).json(
@@ -159,10 +157,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
   await organizer.save({ validateBeforeSave: false });
 
   // 6. Send welcome email
-  await sendWelcomeEmail(email, {
-    name: organizer.name,
-    userType: "organizer"
-  });
+  await sendWelcomeEmail(email, organizer.name);
 
   // 7. Return success response
   return res.status(200).json(
@@ -175,10 +170,142 @@ const verifyOTP = asyncHandler(async (req, res) => {
 });
 
 /**
- * Controller to handle organizer login
+ * Controller for forgot password request
+ * Sends an OTP to the organizer's email
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  // 1. Validate input
+  if (!email) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  // 2. Find organizer by email
+  const organizer = await Organizer.findOne({ email });
+  if (!organizer) {
+    throw new ApiError(404, "No organizer found with this email address");
+  }
+
+  // 3. Generate OTP
+  const { otp, expiresAt } = generateOTP();
+
+  // 4. Save OTP to organizer document
+  organizer.otp = {
+    code: otp,
+    expiresAt
+  };
+  
+  await organizer.save({ validateBeforeSave: false });
+
+  // 5. Send OTP via email
+  await sendVerificationEmail(email, otp, "Password Reset");
+
+  // 6. Return success response
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { email },
+      "Password reset OTP sent to your email. Use this code to reset your password."
+    )
+  );
+});
+
+/**
+ * Controller to reset password with OTP
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  // 1. Validate input
+  if (!email || !otp || !newPassword) {
+    throw new ApiError(400, "Email, OTP and new password are required");
+  }
+
+  // 2. Find organizer with email
+  const organizer = await Organizer.findOne({ email });
+
+  if (!organizer) {
+    throw new ApiError(404, "Organizer not found");
+  }
+
+  // 3. Check if OTP exists and is not expired
+  if (!organizer.otp || !organizer.otp.code || !organizer.otp.expiresAt) {
+    throw new ApiError(400, "No OTP found. Please request a new one");
+  }
+
+  if (new Date() > new Date(organizer.otp.expiresAt)) {
+    throw new ApiError(400, "OTP has expired. Please request a new one");
+  }
+
+  // 4. Verify OTP
+  if (organizer.otp.code !== otp) {
+    throw new ApiError(400, "Invalid OTP");
+  }
+
+  // 5. Update password and clear OTP
+  organizer.password = newPassword;
+  organizer.otp = undefined;
+  
+  // 6. Save the changes
+  await organizer.save();
+
+  // 7. Return success response
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "Password has been reset successfully. Please log in with your new password."
+    )
+  );
+});
+
+/**
+ * Controller to send login OTP for two-factor authentication
+ */
+const sendLoginOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  // 1. Validate input
+  if (!email) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  // 2. Find organizer by email
+  const organizer = await Organizer.findOne({ email });
+  if (!organizer) {
+    throw new ApiError(404, "No organizer found with this email address");
+  }
+
+  // 3. Generate OTP
+  const { otp, expiresAt } = generateOTP();
+
+  // 4. Save OTP to organizer document
+  organizer.otp = {
+    code: otp,
+    expiresAt
+  };
+  
+  await organizer.save({ validateBeforeSave: false });
+
+  // 5. Send OTP via email
+  await sendVerificationEmail(email, otp, "Login Verification");
+
+  // 6. Return success response
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { email },
+      "Login OTP sent to your email. Please verify to complete login."
+    )
+  );
+});
+
+/**
+ * Modified controller to handle organizer login with two-factor authentication
  */
 const loginOrganizer = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, otp } = req.body;
 
   // 1. Validate input
   if (!email || !password) {
@@ -202,14 +329,50 @@ const loginOrganizer = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Email not verified. Please verify your email first");
   }
 
-  // 5. Generate tokens
+  // 5. Check if OTP is provided
+  if (!otp) {
+    // If OTP not provided, generate and send a new one
+    const { otp: newOtp, expiresAt } = generateOTP();
+    
+    organizer.otp = {
+      code: newOtp,
+      expiresAt
+    };
+    
+    await organizer.save({ validateBeforeSave: false });
+    
+    // Send OTP via email
+    await sendVerificationEmail(email, newOtp, "Login Verification");
+    
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        { email },
+        "OTP has been sent to your email. Please verify to complete login."
+      )
+    );
+  }
+
+  // 6. Verify OTP
+  if (!organizer.otp || !organizer.otp.code || organizer.otp.code !== otp) {
+    throw new ApiError(400, "Invalid OTP");
+  }
+
+  if (new Date() > new Date(organizer.otp.expiresAt)) {
+    throw new ApiError(400, "OTP has expired. Please request a new one");
+  }
+
+  // 7. Clear OTP after successful verification
+  organizer.otp = undefined;
+
+  // 8. Generate tokens
   const { accessToken, refreshToken } = generateTokens(organizer);
 
-  // 6. Save refresh token in database
+  // 9. Save refresh token in database
   organizer.refreshToken = refreshToken;
   await organizer.save({ validateBeforeSave: false });
 
-  // 7. Prepare organizer data for response
+  // 10. Prepare organizer data for response
   const organizerData = {
     _id: organizer._id,
     name: organizer.name,
@@ -220,7 +383,7 @@ const loginOrganizer = asyncHandler(async (req, res) => {
     userType: "organizer"
   };
 
-  // 8. Set cookies and send response
+  // 11. Set cookies and send response
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production"
@@ -336,7 +499,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     companyName,
     companyAddress,
     companyRegistrationNumber,
-    paymentAddress
+    upiAddress
   } = req.body;
 
   // 3. Find organizer to update
@@ -357,7 +520,7 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (companyName) organizer.companyName = companyName;
   if (companyAddress) organizer.companyAddress = companyAddress;
   if (companyRegistrationNumber) organizer.companyRegistrationNumber = companyRegistrationNumber;
-  if (paymentAddress !== undefined) organizer.paymentAddress = paymentAddress;
+  if (upiAddress !== undefined) organizer.upiAddress = upiAddress;
 
   // 5. Handle profile picture update if provided
   if (req.file) {
@@ -386,7 +549,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     companyName: organizer.companyName,
     companyAddress: organizer.companyAddress,
     companyRegistrationNumber: organizer.companyRegistrationNumber,
-    paymentAddress: organizer.paymentAddress,
+    upiAddress: organizer.upiAddress,
     profilePicture: organizer.profilePicture,
     isApproved: organizer.isApproved
   };
@@ -438,5 +601,8 @@ export {
   refreshAccessToken,
   logoutOrganizer,
   updateProfile,
-  getCurrentOrganizer
+  getCurrentOrganizer,
+  forgotPassword,
+  resetPassword,
+  sendLoginOTP
 };

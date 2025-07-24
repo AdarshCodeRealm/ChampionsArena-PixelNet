@@ -9,7 +9,8 @@ import {
   rejectOrganizer,
   getApprovedOrganizers,
   getAllPlayers,
-  createOrganizerByAdmin
+  createOrganizerByAdmin,
+  getAllTournaments
 } from '../controllers/admin.controller.js';
 import { adminMiddleware } from '../middlewares/admin.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
@@ -32,6 +33,9 @@ router.patch('/organizers/:organizerId/reject', adminMiddleware, rejectOrganizer
 
 // Players routes
 router.get('/players', adminMiddleware, getAllPlayers);
+
+// Tournaments routes
+router.get('/tournaments', adminMiddleware, getAllTournaments);
 
 // Admin creates organizer directly
 router.post('/organizers/create', adminMiddleware, upload.fields([

@@ -72,7 +72,7 @@ const theme = createTheme({
         },
       },
     },
-  },
+  }
 });
 
 // Custom styled input fields to match the design
@@ -106,12 +106,10 @@ const Register = () => {
     confirmPassword: '',
     mobileNumber: '',
     aadharNumber: '',
-    aadharImage: null,
     companyName: '',
     companyAddress: '',
-    paymentAddress: '',
     companyRegistrationNumber: '',
-    profilePicture: null,
+    upiAddress: '',
   });
   
   const [error, setError] = useState('');
@@ -536,9 +534,9 @@ const Register = () => {
               />
               
               <StyledInput 
-                placeholder="Payment Address (UPI ID) *"
-                name="paymentAddress"
-                value={formData.paymentAddress}
+                placeholder="UPI Address *"
+                name="upiAddress"
+                value={formData.upiAddress}
                 onChange={handleChange}
                 required
                 fullWidth

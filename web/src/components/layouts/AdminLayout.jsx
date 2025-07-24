@@ -2,6 +2,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
+import logo from '../../assets/logo.png';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -119,11 +120,11 @@ const AdminLayout = () => {
         {/* Logo and brand */}
         <div className="p-5 border-b border-gray-700">
           <div className="flex items-center justify-center">
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">CA</span>
+            <div className="bg-white rounded-full p-2 shadow-lg ring-4 ring-blue-400">
+              <img src={logo} alt="Logo" className="w-20 h-20 rounded-full object-cover" />
             </div>
             {sidebarOpen && (
-              <div className="ml-3">
+              <div className="ml-5">
                 <h2 className="text-xl font-bold text-white">Champions Arena</h2>
                 <p className="text-xs text-blue-400">Admin Panel</p>
               </div>

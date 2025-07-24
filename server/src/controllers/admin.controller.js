@@ -1,5 +1,6 @@
 import Admin from "../models/admin.model.js";
 import Organizer from "../models/organizer.model.js";
+import { Tournament } from "../models/Tournament.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -366,10 +367,63 @@ export const createOrganizerByAdmin = asyncHandler(async (req, res) => {
     approvedBy: req.admin?._id,
     approvalDate: new Date()
   });
-
+  console.log("Organizer created and approved by admin.", organizer);
   return res.status(201).json(
     new ApiResponse(201, { organizer }, "Organizer created and approved by admin.")
   );
+});
+
+// Get all tournaments for admin view
+const getAllTournaments = asyncHandler(async (req, res) => {
+  const { page, limit, status, game, organizer, sort, order } = req.query;
+  
+  // Build the query
+  const query = {};
+  if (status && status !== 'all') query.status = status;
+  if (game) query.game = { $regex: game, $options: 'i' };
+  if (organizer) query.organizer = organizer;
+  
+  // Set up pagination
+  const pageNumber = parseInt(page) || 1;
+  const limitNumber = parseInt(limit) || 50;
+  const skip = (pageNumber - 1) * limitNumber;
+  
+  // Set up sorting
+  const sortObj = {};
+  if (sort) {
+    sortObj[sort] = order === 'desc' ? -1 : 1;
+  } else {
+    sortObj.createdAt = -1; // Default sort by creation date, newest first
+  }
+  
+  try {
+    const tournaments = await Tournament.find(query)
+      .populate('organizer', 'name email')
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limitNumber)
+      .lean();
+    
+    const totalTournaments = await Tournament.countDocuments(query);
+    
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          data: tournaments,
+          pagination: {
+            total: totalTournaments,
+            page: pageNumber,
+            limit: limitNumber,
+            pages: Math.ceil(totalTournaments / limitNumber)
+          }
+        },
+        "Tournaments fetched successfully"
+      )
+    );
+  } catch (error) {
+    throw new ApiError(500, "Error fetching tournaments", error);
+  }
 });
 
 export {
@@ -381,5 +435,6 @@ export {
   approveOrganizer,
   rejectOrganizer,
   getApprovedOrganizers,
-  getAllPlayers
+  getAllPlayers,
+  getAllTournaments
 };

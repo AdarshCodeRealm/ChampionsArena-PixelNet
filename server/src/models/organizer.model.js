@@ -47,11 +47,6 @@ const organizerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    paymentAddress: {
-      type: String,
-      trim: true,
-      default: null,
-    },
     companyRegistrationNumber: {
       type: String,
       trim: true,
@@ -107,6 +102,11 @@ const organizerSchema = new mongoose.Schema(
         ref: "Tournament",
       },
     ],
+    upiAddress: {
+      type: String,
+      trim: true,
+      default: ''
+    },
   },
   { timestamps: true }
 );

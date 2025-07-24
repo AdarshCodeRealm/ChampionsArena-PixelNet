@@ -1,7 +1,27 @@
 import mongoose from 'mongoose';
 
+// Create a counter schema for auto-incrementing tournament numbers
+const counterSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  value: {
+    type: Number,
+    default: 0
+  }
+});
+
+const Counter = mongoose.model('Counter', counterSchema);
+
 const tournamentSchema = new mongoose.Schema(
   {
+    tournamentNumber: {
+      type: Number,
+      unique: true,
+      required: true
+    },
     title: {
       type: String,
       required: [true, "Tournament title is required"],
@@ -45,14 +65,6 @@ const tournamentSchema = new mongoose.Schema(
         message: props => `${props.value} is not a valid time format! Use HH:MM (24-hour format)`
       }
     },
-    endDate: {
-      type: Date,
-      required: [true, "Tournament end date is required"]
-    },
-    registrationDeadline: {
-      type: Date,
-      required: [true, "Registration deadline is required"]
-    },
     maxTeams: {
       type: Number,
       required: [true, "Maximum number of teams is required"],
@@ -68,6 +80,11 @@ const tournamentSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: [0, "Prize pool cannot be negative"]
+    },
+    upiAddress: {
+      type: String,
+      trim: true,
+      default: ''
     },
     status: {
       type: String,
@@ -98,28 +115,100 @@ const tournamentSchema = new mongoose.Schema(
       required: [true, "Tournament region is required"],
       trim: true
     },
-    tournamentFormat: {
-      type: String,
-      enum: ["single-elimination", "double-elimination", "round-robin", "swiss", "custom"],
-      default: "single-elimination"
-    },
+
     registeredTeams: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team"
     }],
-    featuredImage: {
-      url: {
-        type: String,
-        default: ""
+    bannerImage: {
+      type: String,
+      default: ""
+    },
+    tournamentFormat: {
+      type: String,
+      enum: ['solo', 'duo', 'squad', 'single-elimination', 'double-elimination', 'round-robin'],
+      default: 'squad'
+    },
+    winners: [{
+      position: {
+        type: Number,
+        required: true
       },
-      publicId: {
-        type: String,
-        default: ""
+      team: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Team"
+      },
+      prize: {
+        type: Number,
+        default: 0
       }
-    }
+    }],
+    matches: [{
+      matchNumber: {
+        type: Number,
+        required: true
+      },
+      title: {
+        type: String,
+        trim: true
+      },
+      description: {
+        type: String,
+        trim: true
+      },
+      date: {
+        type: Date
+      },
+      teams: [{
+        team: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Team"
+        },
+        score: {
+          type: Number,
+          default: 0
+        }
+      }],
+      images: [{
+        url: {
+          type: String,
+          required: true
+        },
+        caption: {
+          type: String,
+          trim: true
+        }
+      }],
+      result: {
+        type: String,
+        trim: true
+      },
+      status: {
+        type: String,
+        enum: ["scheduled", "ongoing", "completed", "cancelled"],
+        default: "scheduled"
+      }
+    }]
   },
   { timestamps: true }
 );
+
+// Pre-save hook to auto-increment tournament number
+tournamentSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    try {
+      const counter = await Counter.findOneAndUpdate(
+        { name: 'tournamentNumber' },
+        { $inc: { value: 1 } },
+        { new: true, upsert: true }
+      );
+      this.tournamentNumber = counter.value;
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
 
 // Create a Team schema as well
 const teamSchema = new mongoose.Schema(

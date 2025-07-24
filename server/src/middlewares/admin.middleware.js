@@ -42,8 +42,9 @@ export const adminMiddleware = async (req, res, next) => {
       );
     }
     
-    // Attach admin to request
+    // Attach admin to request with role information
     req.admin = admin;
+    req.userRole = admin.role; // Add role for easier access
     next();
     
   } catch (error) {
@@ -54,16 +55,16 @@ export const adminMiddleware = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is an admin (any level)
+// Check if user is an admin (regular admin or super-admin)
 export const isAdmin = async (req, res, next) => {
   try {
-    if (!req.user || !req.user.role) {
+    if (!req.admin) {
       return res.status(401).json(
         new ApiResponse(401, null, "Unauthorized: Authentication required")
       );
     }
     
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    if (req.admin.role !== 'admin' && req.admin.role !== 'super-admin') {
       return res.status(403).json(
         new ApiResponse(403, null, "Forbidden: Admin access required")
       );
@@ -78,24 +79,24 @@ export const isAdmin = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is an admin or superadmin
-export const isAdminOrSuperAdmin = async (req, res, next) => {
+// Middleware specifically for super admins only
+export const isSuperAdmin = async (req, res, next) => {
   try {
-    if (!req.user || !req.user.role) {
+    if (!req.admin) {
       return res.status(401).json(
         new ApiResponse(401, null, "Unauthorized: Authentication required")
       );
     }
     
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    if (req.admin.role !== 'super-admin') {
       return res.status(403).json(
-        new ApiResponse(403, null, "Forbidden: Admin or SuperAdmin access required")
+        new ApiResponse(403, null, "Forbidden: Super Admin access required")
       );
     }
     
     next();
   } catch (error) {
-    console.error("isAdminOrSuperAdmin middleware error:", error);
+    console.error("isSuperAdmin middleware error:", error);
     return res.status(500).json(
       new ApiResponse(500, null, "Internal server error during authorization")
     );

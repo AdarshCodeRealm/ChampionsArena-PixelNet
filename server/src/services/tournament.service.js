@@ -29,7 +29,9 @@ class TournamentService {
       const tournament = new Tournament({
         ...tournamentData,
         organizer: organizerId,
-        organizerName: organizer.name || organizer.companyName
+        organizerName: organizer.name || organizer.companyName,
+        upiAddress: organizer.upiAddress || '',
+        bannerImage: tournamentData.bannerImage || ''
       });
 
       // Save the tournament
@@ -217,13 +219,180 @@ class TournamentService {
   async getOrganizerTournaments(organizerId) {
     try {
       const tournaments = await Tournament.find({ organizer: organizerId })
-        .sort({ updatedAt: -1 });
+        .sort({ updatedAt: -1 })
+        .populate('registeredTeams')
+        .populate({
+          path: 'winners.team',
+          model: 'Team',
+          select: 'name captain'
+        });
         
-      return tournaments.map(t => t.toPublicJSON());
+      return tournaments;
     } catch (error) {
       throw new ApiError(500, "Failed to fetch organizer tournaments");
     }
   }
+
+  /**
+   * Adds or updates winners for a tournament
+   * @param {String} tournamentId - ID of the tournament
+   * @param {Array} winners - Array of winner objects with position, team and prize
+   * @param {String} organizerId - ID of the organizer
+   * @returns {Promise<Object>} Updated tournament
+   * @throws {ApiError} If update fails
+   */
+  async addTournamentWinners(tournamentId, winners, organizerId) {
+    try {
+      // Find the tournament and verify ownership
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        throw new ApiError(404, "Tournament not found");
+      }
+
+      if (tournament.organizer.toString() !== organizerId) {
+        throw new ApiError(403, "You can only update tournaments you created");
+      }
+
+      // Update winners
+      tournament.winners = winners.map(winner => ({
+        position: winner.position,
+        team: winner.teamId,
+        prize: winner.prize || 0
+      }));
+
+      // Save the tournament
+      await tournament.save();
+      
+      return tournament.toPublicJSON();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, "Failed to update tournament winners");
+    }
+  }
+
+  /**
+   * Adds a match record to a tournament
+   * @param {String} tournamentId - ID of the tournament
+   * @param {Object} matchData - Match record data
+   * @param {String} organizerId - ID of the organizer
+   * @returns {Promise<Object>} Added match record
+   * @throws {ApiError} If addition fails
+   */
+  async addMatchRecord(tournamentId, matchData, organizerId) {
+    try {
+      // Find the tournament and verify ownership
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        throw new ApiError(404, "Tournament not found");
+      }
+
+      if (tournament.organizer.toString() !== organizerId) {
+        throw new ApiError(403, "You can only update tournaments you created");
+      }
+
+      // Check if match number already exists
+      if (tournament.matches.some(m => m.matchNumber === matchData.matchNumber)) {
+        throw new ApiError(400, `Match #${matchData.matchNumber} already exists in this tournament`);
+      }
+
+      // Add match record
+      tournament.matches.push(matchData);
+      await tournament.save();
+      
+      // Return the newly added match
+      return tournament.matches[tournament.matches.length - 1];
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, "Failed to add match record");
+    }
+  }
+
+  /**
+   * Updates a match record in a tournament
+   * @param {String} tournamentId - ID of the tournament
+   * @param {String} matchId - ID of the match to update
+   * @param {Object} matchData - Updated match data
+   * @param {String} organizerId - ID of the organizer
+   * @returns {Promise<Object>} Updated match record
+   * @throws {ApiError} If update fails
+   */
+  async updateMatchRecord(tournamentId, matchId, matchData, organizerId) {
+    try {
+      // Find the tournament and verify ownership
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        throw new ApiError(404, "Tournament not found");
+      }
+
+      if (tournament.organizer.toString() !== organizerId) {
+        throw new ApiError(403, "You can only update tournaments you created");
+      }
+
+      // Find the match in the tournament
+      const matchIndex = tournament.matches.findIndex(m => m._id.toString() === matchId);
+      if (matchIndex === -1) {
+        throw new ApiError(404, "Match record not found");
+      }
+
+      // Update match fields
+      Object.keys(matchData).forEach(key => {
+        if (matchData[key] !== undefined) {
+          tournament.matches[matchIndex][key] = matchData[key];
+        }
+      });
+
+      await tournament.save();
+      
+      return tournament.matches[matchIndex];
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, "Failed to update match record");
+    }
+  }
+
+  /**
+   * Deletes a match record from a tournament
+   * @param {String} tournamentId - ID of the tournament
+   * @param {String} matchId - ID of the match to delete
+   * @param {String} organizerId - ID of the organizer
+   * @returns {Promise<Boolean>} True if deleted
+   * @throws {ApiError} If deletion fails
+   */
+  async deleteMatchRecord(tournamentId, matchId, organizerId) {
+    try {
+      // Find the tournament and verify ownership
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        throw new ApiError(404, "Tournament not found");
+      }
+
+      if (tournament.organizer.toString() !== organizerId) {
+        throw new ApiError(403, "You can only update tournaments you created");
+      }
+
+      // Find and remove the match from the tournament
+      const matchIndex = tournament.matches.findIndex(m => m._id.toString() === matchId);
+      if (matchIndex === -1) {
+        throw new ApiError(404, "Match record not found");
+      }
+
+      tournament.matches.splice(matchIndex, 1);
+      await tournament.save();
+      
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, "Failed to delete match record");
+    }
+  }
 }
 
-export default new TournamentService(); 
+export default new TournamentService();

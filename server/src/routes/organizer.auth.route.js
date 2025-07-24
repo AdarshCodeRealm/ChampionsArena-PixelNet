@@ -6,7 +6,10 @@ import {
   refreshAccessToken,
   logoutOrganizer,
   updateProfile,
-  getCurrentOrganizer
+  getCurrentOrganizer,
+  forgotPassword,
+  resetPassword,
+  sendLoginOTP
 } from '../controllers/organizer.auth.controller.js';
 import { organizerMiddleware } from '../middlewares/organizer.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
@@ -24,6 +27,9 @@ router.post('/register',
 router.post('/verify-otp', verifyOTP);
 router.post('/login', loginOrganizer);
 router.post('/refresh-token', refreshAccessToken);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+router.post('/send-login-otp', sendLoginOTP);
 
 // Protected routes (require authentication)
 router.post('/logout', organizerMiddleware, logoutOrganizer);

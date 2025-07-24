@@ -13,8 +13,8 @@ const CreateOrganizer = () => {
     aadharNumber: '',
     companyName: '',
     companyAddress: '',
-    paymentAddress: '',
     companyRegistrationNumber: '',
+    upiAddress: '',
   });
   
   const [aadharImage, setAadharImage] = useState(null);
@@ -52,7 +52,6 @@ const CreateOrganizer = () => {
       !formData.aadharNumber ||
       !formData.companyName ||
       !formData.companyAddress ||
-      !formData.paymentAddress ||
       !aadharImage
     ) {
       toast.error('Please fill all required fields');
@@ -115,8 +114,8 @@ const CreateOrganizer = () => {
         aadharNumber: '',
         companyName: '',
         companyAddress: '',
-        paymentAddress: '',
         companyRegistrationNumber: '',
+        upiAddress: '',
       });
       setAadharImage(null);
       setProfilePicture(null);
@@ -295,18 +294,17 @@ const CreateOrganizer = () => {
               />
             </div>
             
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Address (UPI ID)*
+                UPI Address
               </label>
-              <textarea
-                name="paymentAddress"
-                value={formData.paymentAddress}
+              <input
+                type="text"
+                name="upiAddress"
+                value={formData.upiAddress}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter UPI ID for payments"
-                rows="2"
-                required
+                placeholder="Enter UPI address (optional)"
               />
             </div>
           </div>

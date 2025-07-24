@@ -7,17 +7,25 @@ import {
   getAllTournaments,
   getTournamentById,
   registerTeamForTournament,
+  registerTeamByOrganizer,
   processPayment,
   getTournamentTeams,
-  getMyTeams
+  getMyTeams,
+  addTournamentWinners,
+  addMatchRecord,
+  updateMatchRecord,
+  deleteMatchRecord,
+  updateTeamPaymentStatus
 } from '../controllers/tournament.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { organizerMiddleware } from '../middlewares/organizer.middleware.js';
+import { upload } from '../middlewares/multer.middleware.js';
 
 const router = express.Router();
 
 // Public routes (no authentication required)
 router.get('/', getAllTournaments);
+router.post('/', getAllTournaments); // Added POST method support for the same endpoint
 router.get('/:tournamentId', getTournamentById);
 router.get('/:tournamentId/teams', getTournamentTeams);
 
@@ -29,9 +37,20 @@ router.get('/my-teams', authMiddleware, getMyTeams);
 
 // Organizer-only routes (require organizer authentication)
 router.use('/organizer', organizerMiddleware);
-router.post('/', organizerMiddleware, createTournament);
+// Add multer middleware for file uploads
+router.post('/', organizerMiddleware, upload.single('bannerImage'), createTournament);
 router.get('/organizer/tournaments', organizerMiddleware, getOrganizerTournaments);
-router.put('/:tournamentId', organizerMiddleware, updateTournament);
+router.put('/:tournamentId', organizerMiddleware, upload.single('bannerImage'), updateTournament);
 router.delete('/:tournamentId', organizerMiddleware, deleteTournament);
+
+// Team registration and payment management routes for organizers
+router.post('/register-team/organizer', organizerMiddleware, upload.single('paymentReceipt'), registerTeamByOrganizer);
+router.patch('/:tournamentId/teams/:teamId/payment-status', organizerMiddleware, updateTeamPaymentStatus);
+
+// New routes for winners and match records management
+router.post('/:tournamentId/winners', organizerMiddleware, addTournamentWinners);
+router.post('/:tournamentId/matches', organizerMiddleware, upload.array('images'), addMatchRecord);
+router.put('/:tournamentId/matches/:matchId', organizerMiddleware, upload.array('images'), updateMatchRecord);
+router.delete('/:tournamentId/matches/:matchId', organizerMiddleware, deleteMatchRecord);
 
 export default router;
