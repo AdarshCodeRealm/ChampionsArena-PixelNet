@@ -2,6 +2,7 @@
 import connectDB from "./db/index.js"
 import { app } from "./app.js"
 import dotenv from "dotenv"
+import { scheduleTournamentStatusUpdates } from "./utils/schedulers/tournamentStatusScheduler.js"
 dotenv.config({ path: ".env" })
 const port = process.env.PORT || 8000
 
@@ -16,6 +17,9 @@ connectDB()
     
     app.listen(port, () => {
       console.log(`⚙️  Local Server is running at port : ${port}`)
+      
+      // Initialize tournament status update scheduler
+      scheduleTournamentStatusUpdates()
     })
   })
   .catch((error) => {

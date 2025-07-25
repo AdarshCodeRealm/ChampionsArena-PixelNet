@@ -19,6 +19,7 @@ import {
 } from '../controllers/tournament.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { organizerMiddleware } from '../middlewares/organizer.middleware.js';
+import { adminMiddleware } from '../middlewares/admin.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
 
 const router = express.Router();
@@ -34,6 +35,11 @@ router.use('/player', authMiddleware);
 router.post('/:tournamentId/register', authMiddleware, registerTeamForTournament);
 router.post('/teams/:teamId/payment', authMiddleware, processPayment);
 router.get('/my-teams', authMiddleware, getMyTeams);
+
+// Admin routes for tournament management
+router.put('/admin/:tournamentId', adminMiddleware, upload.single('bannerImage'), updateTournament);
+router.delete('/admin/:tournamentId', adminMiddleware, deleteTournament);
+router.post('/admin/create', adminMiddleware, upload.single('bannerImage'), createTournament);
 
 // Organizer-only routes (require organizer authentication)
 router.use('/organizer', organizerMiddleware);

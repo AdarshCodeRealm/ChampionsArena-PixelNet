@@ -120,7 +120,7 @@ const getAllTournaments = asyncHandler(async (req, res) => {
   const { page, limit, status, game, sort, order } = req.query;
   
   const tournaments = await tournamentService.getAllTournaments({
-    page, limit, status, game, sort, order
+    page, limit, status, game, sort, order, populate: 'organizer'
   });
   
   return res.status(200).json(

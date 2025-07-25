@@ -398,7 +398,7 @@ const getAllTournaments = asyncHandler(async (req, res) => {
   
   try {
     const tournaments = await Tournament.find(query)
-      .populate('organizer', 'name email')
+      .populate('organizer', 'name email profilePicture')
       .sort(sortObj)
       .skip(skip)
       .limit(limitNumber)
@@ -426,6 +426,55 @@ const getAllTournaments = asyncHandler(async (req, res) => {
   }
 });
 
+// Get dashboard statistics
+const getDashboardStats = asyncHandler(async (req, res) => {
+  try {
+    const playerAuthModel = await import('../models/playerAuth.model.js');
+    const PlayerAuth = playerAuthModel.default;
+    
+    // Get counts of different entities
+    const totalPlayers = await PlayerAuth.countDocuments();
+    const activePlayers = await PlayerAuth.countDocuments({ 
+      isVerified: true,
+      isBanned: false 
+    });
+    
+    const pendingOrganizers = await Organizer.countDocuments({
+      isVerified: true,
+      isApproved: false
+    });
+    
+    const approvedOrganizers = await Organizer.countDocuments({
+      isVerified: true,
+      isApproved: true
+    });
+    
+    const totalTournaments = await Tournament.countDocuments();
+    const activeTournaments = await Tournament.countDocuments({
+      status: { $in: ['open', 'ongoing'] }
+    });
+    
+    const stats = {
+      totalPlayers,
+      activePlayers,
+      pendingOrganizers,
+      approvedOrganizers,
+      totalTournaments,
+      activeTournaments
+    };
+    
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        stats,
+        "Dashboard statistics fetched successfully"
+      )
+    );
+  } catch (error) {
+    throw new ApiError(500, "Error fetching dashboard statistics", error);
+  }
+});
+
 export {
   loginAdmin,
   refreshAccessToken,
@@ -436,5 +485,6 @@ export {
   rejectOrganizer,
   getApprovedOrganizers,
   getAllPlayers,
-  getAllTournaments
+  getAllTournaments,
+  getDashboardStats
 };

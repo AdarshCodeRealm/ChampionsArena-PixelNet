@@ -147,7 +147,8 @@ class TournamentService {
         status,
         game,
         sort = 'updatedAt',
-        order = 'desc' 
+        order = 'desc',
+        populate
       } = options;
       
       const skip = (page - 1) * limit;
@@ -162,11 +163,17 @@ class TournamentService {
       sortConfig[sort] = order === 'asc' ? 1 : -1;
       
       // Execute query with pagination and sort
-      const tournaments = await Tournament.find(query)
+      let tournamentsQuery = Tournament.find(query)
         .sort(sortConfig)
         .skip(skip)
-        .limit(parseInt(limit))
-        .populate('organizer', 'name companyName');
+        .limit(parseInt(limit));
+      
+      // Populate organizer data if requested
+      if (populate === 'organizer') {
+        tournamentsQuery = tournamentsQuery.populate('organizer', 'name companyName profilePicture');
+      }
+      
+      const tournaments = await tournamentsQuery;
       
       // Get total count
       const total = await Tournament.countDocuments(query);

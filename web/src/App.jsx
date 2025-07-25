@@ -15,6 +15,8 @@ import MatchManagement from './pages/admin/MatchManagement';
 import AllPlayers from './pages/admin/AllPlayers';
 import ApprovedOrganizers from './pages/admin/ApprovedOrganizers';
 import AllTournaments from './pages/admin/AllTournaments';
+import TournamentDetail from './pages/admin/TournamentDetail';
+import EditTournament from './pages/admin/EditTournament';
 
 // Organizer Pages
 import ManageTournaments from './pages/organizer/ManageTournaments';
@@ -68,6 +70,8 @@ function App() {
               <Route path="match-management" element={<MatchManagement />} />
               <Route path="players" element={<AllPlayers />} />
               <Route path="tournaments" element={<AllTournaments />} />
+              <Route path="tournaments/:tournamentId" element={<TournamentDetail />} />
+              <Route path="tournaments/:tournamentId/edit" element={<EditTournament />} />
             </Route>
             
             {/* Organizer routes */}

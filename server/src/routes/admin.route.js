@@ -10,7 +10,8 @@ import {
   getApprovedOrganizers,
   getAllPlayers,
   createOrganizerByAdmin,
-  getAllTournaments
+  getAllTournaments,
+  getDashboardStats
 } from '../controllers/admin.controller.js';
 import { adminMiddleware } from '../middlewares/admin.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
@@ -23,6 +24,9 @@ router.post('/refresh-token', refreshAccessToken);
 
 // Protected routes (require authentication)
 router.post('/logout', adminMiddleware, logoutAdmin);
+
+// Dashboard stats
+router.get('/dashboard/stats', adminMiddleware, getDashboardStats);
 
 // Organizer verification routes
 router.get('/organizers/pending', adminMiddleware, getPendingOrganizerRequests);

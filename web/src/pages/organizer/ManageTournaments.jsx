@@ -5,6 +5,52 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { FiEdit, FiTrash2, FiPlus, FiSave, FiX, FiChevronRight, FiChevronDown, FiUpload } from 'react-icons/fi';
 
+// Custom Delete Confirmation Modal
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, tournamentTitle }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+        <div className="bg-red-600 p-6 text-white">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">Delete Tournament</h3>
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-red-700 transition-colors">
+              <FiX size={20} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <div className="flex items-center mb-4 text-red-600">
+            <FiTrash2 size={24} className="mr-2" />
+            <p className="text-lg font-semibold">Confirm Deletion</p>
+          </div>
+          
+          <p className="text-gray-700 mb-6">
+            Are you sure you want to delete <span className="font-bold">{tournamentTitle}</span>? This action cannot be undone and all related data will be permanently removed.
+          </p>
+          
+          <div className="flex justify-end space-x-3">
+            <button 
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={onConfirm}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete Tournament
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ManageTournaments = () => {
   const { user } = useAuth();
   const [tournaments, setTournaments] = useState([]);
@@ -12,6 +58,8 @@ const ManageTournaments = () => {
   const [expandedTournamentId, setExpandedTournamentId] = useState(null);
   const [expandedSection, setExpandedSection] = useState(null); // 'details', 'winners', 'matches'
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [tournamentToDelete, setTournamentToDelete] = useState(null);
   
   // States for editing tournament
   const [editTournament, setEditTournament] = useState(null);
@@ -299,6 +347,24 @@ const ManageTournaments = () => {
     }
   };
   
+  const handleDeleteTournament = (tournamentId) => {
+    setTournamentToDelete(tournamentId);
+    setShowDeleteModal(true);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!tournamentToDelete) return;
+    
+    try {
+      await deleteTournament(tournamentToDelete);
+      setShowDeleteModal(false);
+      setTournamentToDelete(null);
+    } catch (error) {
+      setShowDeleteModal(false);
+      setTournamentToDelete(null);
+    }
+  };
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -367,7 +433,7 @@ const ManageTournaments = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteTournament(tournament._id);
+                        handleDeleteTournament(tournament._id);
                       }}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-full mr-2"
                       title="Delete tournament"
@@ -505,7 +571,8 @@ const ManageTournaments = () => {
                               name="status"
                               value={editTournament?.status || 'draft'}
                               onChange={handleEditChange}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className={`w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${tournament.status === 'completed' ? 'bg-gray-100' : ''}`}
+                              disabled={tournament.status === 'completed'}
                             >
                               <option value="draft">Draft</option>
                               <option value="open">Open</option>
@@ -514,6 +581,9 @@ const ManageTournaments = () => {
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
+                            {tournament.status === 'completed' && (
+                              <p className="text-xs text-gray-500 mt-1">Status cannot be changed once a tournament is completed.</p>
+                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-medium mb-1">Entry Fee</label>
@@ -861,6 +931,14 @@ const ManageTournaments = () => {
           ))}
         </div>
       )}
+      
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        tournamentTitle={tournamentToDelete ? tournaments.find(t => t._id === tournamentToDelete)?.title : ''}
+      />
     </div>
   );
 };

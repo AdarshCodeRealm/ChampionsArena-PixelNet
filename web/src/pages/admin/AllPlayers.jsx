@@ -133,8 +133,10 @@ const AllPlayers = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
           </div>
         ) : filteredPlayers.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            {searchTerm ? 'No players match your search criteria' : 'No players found in the system'}
+          <div className="bg-gray-800 p-8 rounded-md text-center">
+            <p className="text-gray-200 text-lg">
+              {searchTerm ? 'No players match your search criteria' : 'No players found in the system'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">

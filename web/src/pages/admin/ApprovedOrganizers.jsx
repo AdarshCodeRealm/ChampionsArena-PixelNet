@@ -49,8 +49,8 @@ const ApprovedOrganizers = () => {
       <h1 className="text-2xl font-bold mb-6 text-white">Approved Organizers</h1>
       
       {organizers.length === 0 ? (
-        <div className="bg-blue-50 p-4 rounded-md text-center">
-          <p className="text-blue-800">No approved organizers found.</p>
+        <div className="bg-gray-800 p-8 rounded-md text-center">
+          <p className="text-gray-200 text-lg">No approved organizers found.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
