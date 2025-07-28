@@ -18,7 +18,8 @@ const MERCHANT_BASE_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1
 const MERCHANT_STATUS_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/status"
 const MERCHANT_REFUND_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/refund"
 
-const redirectUrl = "http://localhost:8000/api/v1/payments/status"
+// Use the frontend callback URL if provided in the request, otherwise use the default backend URL
+const defaultRedirectUrl = "http://localhost:8000/api/v1/payments/status"
 const successUrl = "http://localhost:5173/payment-success"
 const failureUrl = "http://localhost:5173/payment-failure"
 
@@ -106,7 +107,7 @@ const updateTransaction = async (transactionId, status, responseData) => {
  */
 const initiatePhonePePayment = asyncHandler(async (req, res) => {
   try {
-    const {name, mobileNumber, amount, userId, description} = req.body;
+    const {name, mobileNumber, amount, userId, description, callbackUrl} = req.body;
     
     // Validate required fields
     if (!amount) {
@@ -122,6 +123,9 @@ const initiatePhonePePayment = asyncHandler(async (req, res) => {
     // Get user ID from authenticated user if available
     const userIdFromAuth = req.user?._id;
     const finalUserId = userId || userIdFromAuth || "GUEST_" + Date.now();
+    
+    // Use the frontend callback URL if provided, otherwise use the backend URL
+    const redirectTarget = callbackUrl || defaultRedirectUrl;
 
     //payment
     const paymentPayload = {
@@ -130,8 +134,8 @@ const initiatePhonePePayment = asyncHandler(async (req, res) => {
         mobileNumber: mobileNumber,
         amount: Number(amount) * 100,
         merchantTransactionId: orderId,
-        redirectUrl: `${redirectUrl}?id=${orderId}`,
-        redirectMode: 'POST',
+        redirectUrl: `${redirectTarget}?id=${orderId}&code=${encodeURIComponent('PAYMENT_SUCCESS')}`,
+        redirectMode: 'GET',
         paymentInstrument: {
             type: 'PAY_PAGE'
         }

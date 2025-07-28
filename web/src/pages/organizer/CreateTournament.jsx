@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const DEFAULT_RULES = {
   fullMap: `Full Map Rules:\n- All players must join the lobby on time.\n- No use of hacks or third-party software.\n- Teaming with other squads is not allowed.\n- The use of glitches or exploits is prohibited.\n- The decision of the organizer is final.`,
@@ -10,6 +11,7 @@ const DEFAULT_RULES = {
 
 const OrganizerCreateTournament = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -148,6 +150,8 @@ const OrganizerCreateTournament = () => {
         tournamentFormat: 'single-elimination',
       });
       setBannerImage(null);
+      // Navigate to manage tournaments page
+      navigate('/organizer/manage-tournaments');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create tournament');
     } finally {

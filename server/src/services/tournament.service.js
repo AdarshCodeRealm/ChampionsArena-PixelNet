@@ -1,6 +1,7 @@
 import Tournament from '../models/Tournament.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Organizer } from '../models/organizer.model.js';
+import mongoose from 'mongoose';
 
 /**
  * Tournament service to handle all tournament related operations
@@ -25,13 +26,22 @@ class TournamentService {
         throw new ApiError(403, "You need to be an approved organizer to create tournaments");
       }
 
-      // Create tournament with organizer information
+      // Generate tournament number (explicitly get the next counter value)
+      const Counter = mongoose.model('Counter');
+      const counter = await Counter.findOneAndUpdate(
+        { name: 'tournamentNumber' },
+        { $inc: { value: 1 } },
+        { new: true, upsert: true }
+      );
+      
+      // Create tournament with organizer information and tournament number
       const tournament = new Tournament({
         ...tournamentData,
         organizer: organizerId,
         organizerName: organizer.name || organizer.companyName,
         upiAddress: organizer.upiAddress || '',
-        bannerImage: tournamentData.bannerImage || ''
+        bannerImage: tournamentData.bannerImage || '',
+        tournamentNumber: counter.value // Explicitly set tournament number
       });
 
       // Save the tournament

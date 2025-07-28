@@ -1,12 +1,79 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import logo from '../../assets/logo.png';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const OrganizerLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const [currentDate, setCurrentDate] = useState('');
+  const [stats, setStats] = useState({
+    totalPlayers: 0,
+    activePlayers: 0,
+    totalTournaments: 0,
+    activeTournaments: 0,
+    completedTournaments: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
   
+  useEffect(() => {
+    // Format current date
+    const date = new Date();
+    setCurrentDate(date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }));
+    
+    // Fetch stats data
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+        
+        // Get tournament stats for this organizer
+        try {
+          const tournamentsRes = await axios.get(`${API_URL}/tournaments/organizer-stats`);
+          if (tournamentsRes.data && tournamentsRes.data.data) {
+            const tournamentData = tournamentsRes.data.data;
+            setStats(prevStats => ({
+              ...prevStats,
+              totalTournaments: tournamentData.totalTournaments || 0,
+              activeTournaments: tournamentData.activeTournaments || 0,
+              completedTournaments: tournamentData.completedTournaments || 0
+            }));
+          }
+        } catch (err) {
+          console.log('Error fetching tournament stats:', err);
+        }
+        
+        // Get player stats
+        try {
+          const playersRes = await axios.get(`${API_URL}/tournaments/player-stats`);
+          if (playersRes.data && playersRes.data.data) {
+            const playerData = playersRes.data.data;
+            setStats(prevStats => ({
+              ...prevStats,
+              totalPlayers: playerData.totalPlayers || 0,
+              activePlayers: playerData.activePlayers || 0
+            }));
+          }
+        } catch (err) {
+          console.log('Error fetching player stats:', err);
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     navigate('/');
@@ -86,12 +153,84 @@ const OrganizerLayout = () => {
         <header className="bg-white shadow-sm z-10">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-              <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">Organizer</span>
+              <span className="text-gray-500">{currentDate}</span>
             </div>
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 bg-gray-100">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="bg-white rounded-lg shadow-md p-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-gray-600 text-sm font-semibold">Total Players</h2>
+                <p className="text-2xl font-bold text-gray-800">{isLoading ? '...' : stats.totalPlayers}</p>
+              </div>
+              <div className="bg-blue-500 text-white rounded-full p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-gray-600 text-sm font-semibold">Active Players</h2>
+                <p className="text-2xl font-bold text-gray-800">{isLoading ? '...' : stats.activePlayers}</p>
+              </div>
+              <div className="bg-green-500 text-white rounded-full p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-gray-600 text-sm font-semibold">Total Tournaments</h2>
+                <p className="text-2xl font-bold text-gray-800">{isLoading ? '...' : stats.totalTournaments}</p>
+              </div>
+              <div className="bg-yellow-500 text-white rounded-full p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-gray-600 text-sm font-semibold">Active Tournaments</h2>
+                <p className="text-2xl font-bold text-gray-800">{isLoading ? '...' : stats.activeTournaments}</p>
+              </div>
+              <div className="bg-green-500 text-white rounded-full p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-gray-600 text-sm font-semibold">Completed Tournaments</h2>
+                <p className="text-2xl font-bold text-gray-800">{isLoading ? '...' : stats.completedTournaments}</p>
+              </div>
+              <div className="bg-red-500 text-white rounded-full p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
           <Outlet />
         </main>
       </div>

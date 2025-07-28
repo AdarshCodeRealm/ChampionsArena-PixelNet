@@ -26,7 +26,6 @@ const router = express.Router();
 
 // Public routes (no authentication required)
 router.get('/', getAllTournaments);
-router.post('/', getAllTournaments); // Added POST method support for the same endpoint
 router.get('/:tournamentId', getTournamentById);
 router.get('/:tournamentId/teams', getTournamentTeams);
 
@@ -52,7 +51,7 @@ router.delete('/:tournamentId', organizerMiddleware, deleteTournament);
 // Team registration and payment management routes for organizers
 router.post('/register-team/organizer', organizerMiddleware, upload.single('paymentReceipt'), registerTeamByOrganizer);
 router.patch('/:tournamentId/teams/:teamId/payment-status', organizerMiddleware, updateTeamPaymentStatus);
-
+ 
 // New routes for winners and match records management
 router.post('/:tournamentId/winners', organizerMiddleware, addTournamentWinners);
 router.post('/:tournamentId/matches', organizerMiddleware, upload.array('images'), addMatchRecord);

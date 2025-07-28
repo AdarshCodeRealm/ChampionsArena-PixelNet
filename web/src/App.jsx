@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import ThankYou from './pages/ThankYou';
 
 // Admin Pages
 import CreateOrganizer from './pages/admin/CreateOrganizer';
@@ -51,6 +52,11 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/thank-you" element={
+              <ProtectedRoute userType="organizer">
+                <ThankYou />
+              </ProtectedRoute>
+            } />
             
             {/* Admin routes */}
             <Route path="/admin/*" element={

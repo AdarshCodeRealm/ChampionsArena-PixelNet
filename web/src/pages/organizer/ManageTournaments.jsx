@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -53,6 +54,8 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, tournamentTitle }
 
 const ManageTournaments = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedTournamentId, setExpandedTournamentId] = useState(null);
@@ -83,8 +86,10 @@ const ManageTournaments = () => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
   
   useEffect(() => {
-    fetchTournaments();
-  }, [user]);
+    if (user?.token) {
+      fetchTournaments();
+    }
+  }, [user, location]);
   
   const fetchTournaments = async () => {
     try {
@@ -95,6 +100,7 @@ const ManageTournaments = () => {
         },
       });
       setTournaments(response.data.data || []);
+      conso
     } catch (error) {
       console.error("Error fetching tournaments:", error);
       toast.error(error.response?.data?.message || 'Failed to fetch tournaments');
@@ -394,10 +400,10 @@ const ManageTournaments = () => {
           {tournaments.map((tournament) => (
             <div key={tournament._id} className="bg-white rounded-lg shadow-md overflow-hidden">
               {/* Tournament Header with Banner Image */}
-              <div className="relative">
+              <div className="relative"> 
                 {tournament.bannerImage ? (
                   <img 
-                    src={tournament.bannerImage.url} 
+                    src={tournament.bannerImage} 
                     alt={tournament.title} 
                     className="w-full h-40 object-cover"
                   />

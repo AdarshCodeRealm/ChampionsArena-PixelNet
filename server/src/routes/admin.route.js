@@ -9,7 +9,7 @@ import {
   rejectOrganizer,
   getApprovedOrganizers,
   getAllPlayers,
-  createOrganizerByAdmin,
+  createOrganizerByAdmin, 
   getAllTournaments,
   getDashboardStats
 } from '../controllers/admin.controller.js';

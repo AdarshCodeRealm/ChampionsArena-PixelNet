@@ -16,6 +16,7 @@ const router = express.Router();
 // // Public routes
 router.get('/status', paymentStatus);
 router.get('/status/:transactionId', checkPaymentStatus);
+router.get('/status/verify', checkPaymentStatus); // Adding new GET route for verification
 
 // // Payment routes for organizers
 router.post('/phonepe/initiate', initiatePhonePePayment);
