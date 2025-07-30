@@ -19,7 +19,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
-  const { loginWithPassword, authError, forgotPassword } = useAuth();
+  const { loginWithPassword, authError, forgotPassword, skipLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -96,6 +96,24 @@ const LoginScreen = ({ navigation }) => {
         });
       } else {
         Alert.alert('Password Reset Failed', response.message || 'Failed to send password reset code. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', authError || error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSkipLogin = async () => {
+    setIsLoading(true);
+    try {
+      const response = await skipLogin();
+      if (response.success) {
+        // Guest mode activated successfully
+        // The AppNavigator will automatically detect isGuestMode change and navigate to Main
+        console.log('Guest mode activated, navigating to main screen...');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to skip login');
       }
     } catch (error) {
       Alert.alert('Error', authError || error.message || 'Something went wrong. Please try again.');
@@ -208,6 +226,18 @@ const LoginScreen = ({ navigation }) => {
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.loginButtonText}>LOG IN</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.skipLoginButton, isLoading && styles.buttonDisabled]}
+                onPress={handleSkipLogin}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.skipLoginButtonText}>SKIP LOGIN</Text>
                 )}
               </TouchableOpacity>
               
@@ -361,11 +391,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  skipLoginButton: {
+    backgroundColor: 'transparent',
+    height: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   buttonDisabled: {
     opacity: 0.7,
   },
   loginButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  skipLoginButtonText: {
+    color: colors.primary,
     fontSize: 16,
     fontWeight: 'bold',
   },

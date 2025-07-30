@@ -93,20 +93,30 @@ const MatchesScreen = ({ navigation }) => {
   // Fetch tournaments from API
   const fetchTournaments = async () => {
     setLoading(true);
+    setError(null);
     try {
       const tournamentsData = await tournamentService.getAllTournaments({
         sort: 'updatedAt',
-        order: 'desc'
+        order: 'desc',
+        limit: 20
       });
 
-      if (tournamentsData && tournamentsData.data) {
-        setTournaments(tournamentsData.data);
+      if (tournamentsData && tournamentsData.tournaments) {
+        // Use the actual API response structure
+        setTournaments(tournamentsData.tournaments);
+      } else if (tournamentsData && Array.isArray(tournamentsData)) {
+        // If the response is directly an array
+        setTournaments(tournamentsData);
       } else {
-        throw new Error('No tournament data received');
+        // Fallback to mock data if API fails
+        console.log('No tournaments from API, using fallback data');
+        setTournaments(FALLBACK_TOURNAMENTS);
       }
     } catch (error) {
       console.error('Error fetching tournaments:', error);
-      setError(error.message || 'Failed to load tournaments');
+      setError(`Failed to load tournaments: ${error.message}`);
+      // Use fallback data when API fails
+      setTournaments(FALLBACK_TOURNAMENTS);
     } finally {
       setLoading(false);
     }
@@ -311,4 +321,4 @@ const MatchesScreen = ({ navigation }) => {
   );
 };
 
-export default MatchesScreen; 
+export default MatchesScreen;

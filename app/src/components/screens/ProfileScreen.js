@@ -309,7 +309,7 @@ const ProfileScreen = ({ navigation }) => {
 
       // Launch the image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Fixed: Use MediaTypeOptions.Images for expo-image-picker v16+
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.7,
@@ -484,7 +484,7 @@ const ProfileScreen = ({ navigation }) => {
                   <Text style={styles.quickStatNumber}>
                     {profileData.stats?.totalMatches > 0 
                       ? Math.round((profileData.stats?.matchesWon / profileData.stats?.totalMatches) * 100) 
-                      : 0}%
+                      : 0}%>
                   </Text>
                   <Text style={styles.quickStatLabel}>Win Rate</Text>
                 </View>
@@ -524,45 +524,25 @@ const ProfileScreen = ({ navigation }) => {
                   <View key={item} style={styles.matchHistoryItem}>
                     <View
                       style={[
-                        styles.matchResultIndicator,
-                        {
-                          backgroundColor:
-                            item % 2 === 0
-                              ? colors.status.danger
-                              : colors.status.success,
-                        },
+                        styles.matchResult,
+                        { backgroundColor: item === 1 ? colors.status.success : colors.status.danger }
                       ]}
-                    />
-                    <View style={styles.matchHistoryContent}>
-                      <Text style={styles.matchHistoryTitle}>
-                        {item % 2 === 0
-                          ? "Lost to Team Alpha"
-                          : "Won against Team Beta"}
-                      </Text>
-                      <Text style={styles.matchHistoryDetails}>
-                        Free Fire MAX • {item} days ago
+                    >
+                      <Text style={styles.matchResultText}>
+                        {item === 1 ? "W" : "L"}
                       </Text>
                     </View>
-                    <Text style={styles.matchHistoryScore}>
-                      {item % 2 === 0 ? "2 - 3" : "3 - 1"}
-                    </Text>
+                    <View style={styles.matchInfo}>
+                      <Text style={styles.matchTitle}>Tournament Match #{item}</Text>
+                      <Text style={styles.matchDate}>2 days ago</Text>
+                    </View>
+                    <Text style={styles.matchKills}>+{5 + item} kills</Text>
                   </View>
                 ))}
               </View>
             </>
           ) : (
-            // Show login prompt for both guest users and unauthenticated users
             renderLoginPrompt()
-          )}
-
-          {/* Guest user banner if user is a guest */}
-          {isGuestUser && (
-            <View style={styles.guestBanner}>
-              <Ionicons name="information-circle-outline" size={20} color="#fff" style={{marginRight: 8}} />
-              <Text style={styles.guestBannerText}>
-                You're browsing as a guest. Some features are limited.
-              </Text>
-            </View>
           )}
         </ScrollView>
       )}
@@ -570,38 +550,205 @@ const ProfileScreen = ({ navigation }) => {
   );
 };
 
-// Add new styles for login prompt and guest user
 const styles = StyleSheet.create({
-  loginPromptContainer: {
-    flex: 1,
+  profileCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
   },
-  loginIcon: {
-    marginBottom: 20,
+  profileImageContainer: {
+    position: 'relative',
+    marginRight: 16,
   },
-  loginTitle: {
-    fontSize: 22,
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  profileImageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  profileName: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text.primary,
-    marginBottom: 15,
+    flex: 1,
+  },
+  editButton: {
+    padding: 4,
+  },
+  profileUsername: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: 8,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  contactText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginLeft: 6,
+  },
+  quickStatsRow: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  quickStatItem: {
+    alignItems: 'center',
+  },
+  quickStatNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: colors.text.secondary,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sectionCardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+    marginBottom: 16,
+  },
+  achievementRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  achievement: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  achievementIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  achievementText: {
+    fontSize: 12,
+    color: colors.text.secondary,
     textAlign: 'center',
+  },
+  matchHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  matchResult: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  matchResultText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  matchInfo: {
+    flex: 1,
+  },
+  matchTitle: {
+    fontSize: 14,
+    color: colors.text.primary,
+    fontWeight: '500',
+  },
+  matchDate: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  matchKills: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  loginPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loginIcon: {
+    marginBottom: 24,
+  },
+  loginTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   loginDescription: {
     fontSize: 16,
     color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 25,
+    lineHeight: 22,
+    marginBottom: 32,
   },
   loginButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    marginBottom: 30,
-    width: '100%',
-    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 32,
   },
   loginButtonText: {
     color: '#fff',
@@ -614,280 +761,53 @@ const styles = StyleSheet.create({
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
-    backgroundColor: colors.cardBackground,
-    padding: 15,
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    marginBottom: 16,
   },
   featureText: {
-    marginLeft: 15,
-    fontSize: 15,
-    color: colors.text.primary,
-  },
-  guestBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(13, 132, 195, 0.2)',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 20,
-    marginHorizontal: 16,
-  },
-  guestBannerText: {
-    color: '#fff',
-    fontSize: 14,
-    flex: 1,
-  },
-  
-  // New Profile Card Styles - More compact layout
-  profileCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  profileImageContainer: {
-    position: 'relative',
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    marginRight: 15,
-    overflow: 'hidden',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 45,
-    borderWidth: 3,
-    borderColor: colors.primary,
-  },
-  profileImageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  changePhotoText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  profileUsername: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginBottom: 8,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  contactText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    marginLeft: 6,
-  },
-  privacyButton: {
-    flexDirection: 'row',
-    backgroundColor: colors.primary,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 10,
-  },
-  privacyButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
-  editButton: {
-    backgroundColor: 'transparent',
-    padding: 8,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-  },
-  
-  // Stats Section
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-    marginBottom: 15,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    width: '48%',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    alignItems: 'center',
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 5,
-  },
-  
-  // Achievements
-  sectionCardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-    marginBottom: 15,
-  },
-  achievementRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  achievement: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 10,
-    padding: 15,
-    flex: 1,
-    marginHorizontal: 5,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  achievementIcon: {
-    marginRight: 10,
-  },
-  achievementText: {
-    color: colors.text.primary,
-    fontSize: 14,
-  },
-  
-  // Match History
-  matchHistoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  matchResultIndicator: {
-    width: 4,
-    height: '100%',
-    backgroundColor: colors.status.success,
-  },
-  matchHistoryContent: {
-    flex: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-  },
-  matchHistoryTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  matchHistoryDetails: {
-    fontSize: 12,
-    color: colors.text.secondary,
-  },
-  matchHistoryScore: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-    paddingRight: 16,
+    color: colors.text.secondary,
+    marginLeft: 12,
   },
-  
-  // Privacy Modal Styles
   privacyModalContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 100,
-    padding: 20,
+    zIndex: 1000,
   },
   privacyModal: {
-    width: '90%',
     backgroundColor: colors.cardBackground,
     borderRadius: 16,
-    overflow: 'hidden',
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
   },
   privacyModalHeader: {
-    backgroundColor: colors.primary,
-    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
   },
   privacyModalTitle: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    color: colors.text.primary,
   },
   closeButton: {
-    padding: 5,
+    padding: 4,
   },
   privacyModalBody: {
-    padding: 20,
+    marginBottom: 20,
   },
   privacySetting: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -897,44 +817,14 @@ const styles = StyleSheet.create({
   },
   privacyModalButton: {
     backgroundColor: colors.primary,
-    padding: 15,
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 10,
   },
   privacyModalButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  
-  // Quick Stats Row
-  quickStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 16,
-  },
-  quickStatItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  quickStatNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 4,
-  },
-  statDivider: {
-    width: 1,
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: 10,
   },
 });
 

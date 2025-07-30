@@ -13,15 +13,32 @@ const TournamentCard = ({ tournament, onPress }) => {
   };
 
   // Get the appropriate color based on status or default to orange-red
-  const statusColor = statusColors[tournament.status] || statusColors.upcoming;
+  const statusColor = statusColors[tournament?.status] || statusColors.upcoming;
+
+  // Safe access to tournament properties with fallbacks
+  const tournamentName = tournament?.name || tournament?.title || 'Tournament';
+  const tournamentGame = tournament?.game || tournament?.gameType || 'Game';
+  const tournamentPrize = tournament?.prize || tournament?.prizePool || '0';
+  const tournamentDate = tournament?.date || tournament?.startDate || 'TBD';
+  const tournamentOrganizer = tournament?.organizer || tournament?.organizerName || 'Organizer';
+  const registeredTeams = tournament?.registeredTeams || tournament?.currentParticipants || 0;
+  const maxTeams = tournament?.maxTeams || tournament?.maxParticipants || 0;
+  const bannerImage = tournament?.bannerImage || tournament?.image || 'https://i.pinimg.com/736x/41/b9/ee/41b9eed394ab758224d56518d4b2d41a.jpg';
+
+  // Safely format prize - remove $ and handle various formats
+  const formatPrize = (prize) => {
+    if (!prize) return '0';
+    const prizeStr = String(prize);
+    return prizeStr.replace(/[$,]/g, '');
+  };
 
   return (
     <TouchableOpacity 
       style={tournamentStyles.tournamentCard} 
-      onPress={() => onPress(tournament)}
+      onPress={() => onPress && onPress(tournament)}
     >
       {/* Status flag at top left corner */}
-      {tournament.status && (
+      {tournament?.status && (
         <View style={[
           tournamentStyles.statusFlag, 
           { 
@@ -42,47 +59,48 @@ const TournamentCard = ({ tournament, onPress }) => {
         </View>
       )}
       
-      {/* Ensure bannerImage exists in tournament object and has a valid URL */}
+      {/* Tournament banner image */}
       <Image
-        source={{ 
-          uri: tournament.bannerImage || 'https://i.pinimg.com/736x/41/b9/ee/41b9eed394ab758224d56518d4b2d41a.jpg'
-        }}
+        source={{ uri: bannerImage }}
         style={{
           width: '100%',
-          height: 150, // Fixed height for banner
+          height: 150,
           borderTopLeftRadius: 8,
           borderTopRightRadius: 8,
         }}
-        alt='banner'
         resizeMode="cover"
       />
+      
       <View style={tournamentStyles.tournamentHeader}>
-        <Text style={tournamentStyles.tournamentName}>{tournament.name}</Text>
+        <Text style={tournamentStyles.tournamentName}>{tournamentName}</Text>
         <View style={tournamentStyles.prizeBadge}>
-          <Text style={tournamentStyles.prizeText}>₹{tournament.prize.replace('$', '')}</Text>
+          <Text style={tournamentStyles.prizeText}>₹{formatPrize(tournamentPrize)}</Text>
         </View>
       </View>
-      <Text style={tournamentStyles.tournamentGame}>{tournament.game}</Text>
+      
+      <Text style={tournamentStyles.tournamentGame}>{tournamentGame}</Text>
       <Text style={[tournamentStyles.tournamentGame, { fontSize: 12, marginTop: 2, color: '#666' }]}>
-        Organizer: {tournament.organizer}
+        Organizer: {tournamentOrganizer}
       </Text>
+      
       <View style={tournamentStyles.tournamentDetails}>
         <View style={[tournamentStyles.detailItem, { flex: 2 }]}>
           <Ionicons name="calendar-outline" size={16} color="#0d84c3" />
           <Text style={tournamentStyles.detailText}>
-            {tournament.date} • 16:00 
+            {tournamentDate} • 16:00 
           </Text>
         </View>
         <View style={tournamentStyles.detailItem}>
           <Ionicons name="people-outline" size={16} color="#0d84c3" />
           <Text style={tournamentStyles.detailText}>
-            {tournament.registeredTeams}/{tournament.maxTeams} Teams
+            {registeredTeams}/{maxTeams} Teams
           </Text>
         </View>
       </View>
+      
       <TouchableOpacity 
         style={tournamentStyles.registerButton} 
-        onPress={() => onPress(tournament)}
+        onPress={() => onPress && onPress(tournament)}
       >
         <Text style={[tournamentStyles.registerButtonText, { 
           color: '#ffffff',
@@ -93,7 +111,7 @@ const TournamentCard = ({ tournament, onPress }) => {
           overflow: 'hidden',
           textAlign: 'center'
         }]}>
-          {tournament.status === 'upcoming' ? 'Register Now' : 'View Details'}
+          {tournament?.status === 'upcoming' ? 'Register Now' : 'View Details'}
         </Text>
       </TouchableOpacity>
     </TouchableOpacity>

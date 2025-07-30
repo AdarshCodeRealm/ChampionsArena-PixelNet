@@ -18,14 +18,13 @@ const MatchForm = ({ formData, setFormData, bannerImage, setBannerImage }) => {
     
     // Launch image picker
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // Fixed: Use MediaTypeOptions.Images for expo-image-picker v16+
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.8,
     });
-    
+
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      // Set the selected image
       setBannerImage(result.assets[0]);
     }
   };
@@ -245,4 +244,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MatchForm; 
+export default MatchForm;

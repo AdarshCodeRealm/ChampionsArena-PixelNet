@@ -62,6 +62,7 @@ const UpdateProfileScreen = ({ navigation }) => {
 
   const handleSelectImage = async () => {
     try {
+      // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'We need permission to access your photos to update your profile picture.');
@@ -69,7 +70,7 @@ const UpdateProfileScreen = ({ navigation }) => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Fixed: Use MediaTypeOptions.Images for expo-image-picker v16+
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.7,

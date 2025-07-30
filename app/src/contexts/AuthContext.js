@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState(null);
   const [authError, setAuthError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
 
   // useEffect to check auth status on mount - only once
   useEffect(() => {
@@ -26,10 +27,23 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize axios with auth headers
   const setupAxiosInterceptors = (token) => {
+    // Clear any existing interceptors to avoid duplicates
+    axios.interceptors.request.clear();
+    axios.interceptors.response.clear();
+
     // Request interceptor for API calls
     axios.interceptors.request.use(
       async (config) => {
-        if (token) {
+        // Don't add auth headers for registration and OTP verification endpoints
+        const isPublicEndpoint = config.url?.includes('/player-auth/register') || 
+                                config.url?.includes('/player-auth') || 
+                                config.url?.includes('/auth/verify-otp') || 
+                                config.url?.includes('/auth/resend-otp') ||
+                                config.url?.includes('/auth/initiate-otp') ||
+                                config.url?.includes('/auth/forgot-password') ||
+                                config.url?.includes('/auth/reset-password');
+        
+        if (token && !isPublicEndpoint) {
           config.headers = {
             ...config.headers,
             Authorization: `Bearer ${token}`,
@@ -38,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         return config;
       },
       (error) => {
-        Promise.reject(error);
+        return Promise.reject(error);
       }
     );
 
@@ -48,8 +62,17 @@ export const AuthProvider = ({ children }) => {
       async (error) => {
         const originalRequest = error.config;
         
-        // If error is 401 and we haven't tried to refresh token yet
-        if (error.response?.status === 401 && !originalRequest._retry && refreshToken) {
+        // Only try to refresh token for protected endpoints that require authentication
+        const isPublicEndpoint = originalRequest.url?.includes('/player-auth/register') || 
+                                originalRequest.url?.includes('/player-auth') || 
+                                originalRequest.url?.includes('/auth/verify-otp') || 
+                                originalRequest.url?.includes('/auth/resend-otp') ||
+                                originalRequest.url?.includes('/auth/initiate-otp') ||
+                                originalRequest.url?.includes('/auth/forgot-password') ||
+                                originalRequest.url?.includes('/auth/reset-password');
+        
+        // If error is 401 and we haven't tried to refresh token yet and it's not a public endpoint
+        if (error.response?.status === 401 && !originalRequest._retry && !isPublicEndpoint && refreshToken) {
           originalRequest._retry = true;
           
           try {
@@ -131,6 +154,9 @@ export const AuthProvider = ({ children }) => {
       setRefreshToken(null);
       setUserData(null);
       
+      // Reset guest mode
+      setIsGuestMode(false);
+      
       return true;
     } catch (error) {
       console.log('Clear auth data error:', error);
@@ -195,7 +221,7 @@ export const AuthProvider = ({ children }) => {
         headers = { 'Content-Type': 'multipart/form-data' };
       }
       
-      // Send registration request
+      // Send registration request - NO AUTH TOKEN NEEDED for registration
       const response = await axios.post(
         `${API_URL}${AUTH_ROUTES.PLAYER_AUTH}`, 
         profileImage ? formData : userData,
@@ -205,7 +231,10 @@ export const AuthProvider = ({ children }) => {
       return response.data;
     } catch (error) {
       console.log('Registration error:', error.response?.data || error.message);
-      setAuthError(error.response?.data?.message || 'Registration failed');
+      // Don't set auth error if it's just "No refresh token available" during registration
+      if (!error.message?.includes('No refresh token available')) {
+        setAuthError(error.response?.data?.message || 'Registration failed');
+      }
       throw error;
     } finally {
       setIsLoading(false);
@@ -527,6 +556,51 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const skipLogin = async () => {
+    setIsLoading(true);
+    try {
+      // Clear any existing auth data manually without affecting guest mode
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
+      
+      try {
+        await SecureStore.deleteItemAsync('accessToken');
+        await SecureStore.deleteItemAsync('refreshToken');
+      } catch (secureStoreError) {
+        console.log('SecureStore clear error:', secureStoreError);
+      }
+      
+      // Clear auth tokens but keep guest mode
+      setUserToken(null);
+      setRefreshToken(null);
+      
+      // Create guest user data
+      const guestUserData = {
+        id: 'guest',
+        name: 'Guest User',
+        email: 'guest@example.com',
+        role: 'guest',
+        isGuest: true,
+      };
+      
+      // Store guest user data and set state
+      await AsyncStorage.setItem('user', JSON.stringify(guestUserData));
+      setUserData(guestUserData);
+      
+      // Set guest mode AFTER clearing other data
+      setIsGuestMode(true);
+      
+      console.log('Skipped login, guest mode activated');
+      return { success: true };
+    } catch (error) {
+      console.log('Skip login error:', error);
+      setIsGuestMode(false); // Reset guest mode if error occurs
+      return { success: false, message: error.message || 'Failed to skip login' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       isLoading, 
@@ -545,7 +619,9 @@ export const AuthProvider = ({ children }) => {
       updateProfile, 
       logout, 
       checkCurrentUser, 
-      isLoggedIn 
+      isLoggedIn,
+      skipLogin,
+      isGuestMode 
     }}>
       {children}
     </AuthContext.Provider>

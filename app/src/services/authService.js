@@ -1,4 +1,5 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY, AUTH_ROUTES } from '../config/constants';
 
 /**
@@ -446,7 +447,6 @@ class AuthService {
         localStorage.setItem(USER_DATA_KEY, JSON.stringify(authData.user));
       } else {
         // React Native environment
-        const AsyncStorage = await import('@react-native-async-storage/async-storage').default;
         await AsyncStorage.setItem(TOKEN_KEY, authData.accessToken);
         await AsyncStorage.setItem(REFRESH_TOKEN_KEY, authData.refreshToken);
         await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(authData.user));
@@ -479,7 +479,6 @@ class AuthService {
         }
       } else {
         // React Native environment
-        const AsyncStorage = await import('@react-native-async-storage/async-storage').default;
         const token = await AsyncStorage.getItem(TOKEN_KEY);
         const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
         const userDataStr = await AsyncStorage.getItem(USER_DATA_KEY);
@@ -512,7 +511,6 @@ class AuthService {
         localStorage.removeItem(USER_DATA_KEY);
       } else {
         // React Native environment
-        const AsyncStorage = await import('@react-native-async-storage/async-storage').default;
         await AsyncStorage.removeItem(TOKEN_KEY);
         await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
         await AsyncStorage.removeItem(USER_DATA_KEY);

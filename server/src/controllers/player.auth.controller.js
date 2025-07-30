@@ -23,6 +23,12 @@ import crypto from "crypto"
  * 2. After OTP verification, move data to permanent collection
  */
 const registerPlayer = asyncHandler(async (req, res) => {
+  // FLAG: Register controller entry point
+  console.log("🚀 REGISTER CONTROLLER ENTERED - Player registration process started")
+  console.log("📧 Registration attempt for email:", req.body.email)
+  console.log("📱 Request method:", req.method)
+  console.log("🕒 Timestamp:", new Date().toISOString())
+
   // 1. Extract player information from request body
   const { name, email, username, password, uid, mobileNumber, otp } = req.body
   // 2. Validate required fields

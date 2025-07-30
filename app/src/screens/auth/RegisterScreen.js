@@ -118,6 +118,8 @@ const RegisterScreen = ({ route, navigation }) => {
   // Handle profile image picking
   const pickImage = async () => {
     try {
+      console.log('Starting image picker...');
+      
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
@@ -134,10 +136,16 @@ const RegisterScreen = ({ route, navigation }) => {
         quality: 0.8,
       });
       
+      console.log('Image picker result:', result);
+      
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        console.log('Selected image:', result.assets[0]);
         setProfileImage(result.assets[0]);
+      } else {
+        console.log('Image selection was canceled or no assets found');
       }
     } catch (error) {
+      console.error('Image picker error:', error);
       Alert.alert('Error', 'Failed to pick image: ' + error.message);
     }
   };
@@ -174,6 +182,7 @@ const RegisterScreen = ({ route, navigation }) => {
       // Display error from AuthContext if available
       Alert.alert('Registration Error', authError || error.message || 'Something went wrong during registration');
     } finally {
+      // Always reset loading state, even if an error occurs
       setIsLoading(false);
     }
   };

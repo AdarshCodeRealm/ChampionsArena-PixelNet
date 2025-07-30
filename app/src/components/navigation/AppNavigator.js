@@ -88,7 +88,29 @@ const TabNavigator = () => {
 
 // Main App Navigator
 const AppNavigator = () => {
-  const { isLoading, userToken } = useAuth();
+  const { isLoading, userToken, isGuestMode } = useAuth();
+  const navigationRef = React.useRef(null);
+
+  // This effect will handle navigation reset when authentication state changes
+  useEffect(() => {
+    if (navigationRef.current && !isLoading) {
+      if (userToken || isGuestMode) {
+        // Navigate to Main when user is authenticated or in guest mode
+        console.log('Navigating to Main - userToken:', !!userToken, 'isGuestMode:', isGuestMode);
+        navigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        // Navigate to Auth when not authenticated
+        console.log('Navigating to Auth - not authenticated');
+        navigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        });
+      }
+    }
+  }, [userToken, isGuestMode, isLoading]);
 
   if (isLoading) {
     return (
@@ -99,15 +121,15 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer theme={MyTheme}>
+    <NavigationContainer ref={navigationRef} theme={MyTheme}>
       <RootNavigator.Navigator 
         screenOptions={{ 
           headerShown: false,
           cardStyle: { backgroundColor: colors.background }
         }}
       >
-        {userToken ? (
-          // User is logged in - Show Main App
+        {userToken || isGuestMode ? (
+          // User is logged in or in guest mode - Show Main App
           <RootNavigator.Screen name="Main" component={TabNavigator} />
         ) : (
           // User is not logged in - Show Auth Screens
