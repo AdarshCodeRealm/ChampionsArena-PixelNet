@@ -18,32 +18,63 @@ import crypto from "crypto"
 
 /**
  * Controller for player registration with email & password
- * Two-step process:
- * 1. Save registration data to temporary collection and send OTP
- * 2. After OTP verification, move data to permanent collection
+ * Flow:
+ * 1. Player fills registration form
+ * 2. System creates pending registration and sends OTP
+ * 3. Player verifies OTP to complete registration
+ * 4. Unverified registrations auto-delete after 1 hour
+ * 5. If player tries to register again with existing pending registration, redirect to OTP verification
  */
 const registerPlayer = asyncHandler(async (req, res) => {
-  // FLAG: Register controller entry point
   console.log("🚀 REGISTER CONTROLLER ENTERED - Player registration process started")
   console.log("📧 Registration attempt for email:", req.body.email)
   console.log("📱 Request method:", req.method)
   console.log("🕒 Timestamp:", new Date().toISOString())
+  console.log("📂 Request body:", req.body)
 
   // 1. Extract player information from request body
   const { name, email, username, password, uid, mobileNumber, otp } = req.body
+
   // 2. Validate required fields
   if (!name || !email || !username || !password || !uid) {
-    throw new ApiError(400, "All required fields must be provided")
+    throw new ApiError(400, "All required fields must be provided (name, email, username, password, uid)")
   }
 
-  // 3. Check if player already exists in the permanent collection
+  // 3. Check if player already exists in the permanent collection (fully registered)
   const existingPlayer = await PlayerAuth.findOne({
     $or: [{ email }, { username }],
   })
 
   if (existingPlayer) {
     if (existingPlayer.email === email) {
-      throw new ApiError(409, "Email is already registered")
+      if (existingPlayer.isVerified) {
+        throw new ApiError(409, "Email is already registered and verified. Please login instead.")
+      } else {
+        // Player exists but not verified - this shouldn't happen as we use temporary collection
+        // But handle it by redirecting to verification
+        const { otp: newOTP, expiryTime } = generateOTP()
+        
+        existingPlayer.otp = {
+          code: newOTP, 
+          expiresAt: expiryTime,
+        }
+        await existingPlayer.save({ validateBeforeSave: false })
+        
+        await sendVerificationEmail(email, newOTP)
+        
+        return res.status(409).json(
+          new ApiResponse(
+            409,
+            { 
+              email, 
+              requiresVerification: true,
+              redirectToOtp: true,
+              message: "Account exists but not verified. New OTP sent to your email." 
+            },
+            "Please verify your email to complete registration"
+          )
+        )
+      }
     } else {
       throw new ApiError(409, "Username is already taken")
     }
@@ -57,7 +88,7 @@ const registerPlayer = asyncHandler(async (req, res) => {
     if (!pendingRegistration) {
       throw new ApiError(
         404,
-        "No pending registration found. Please start registration again"
+        "No pending registration found. Registration may have expired. Please start registration again."
       )
     }
 
@@ -76,11 +107,10 @@ const registerPlayer = asyncHandler(async (req, res) => {
         )
       }
 
-      throw new ApiError(400, "Invalid or expired OTP")
+      throw new ApiError(400, `Invalid or expired OTP. ${5 - attempts} attempts remaining.`)
     }
 
     // OTP verified - create permanent account
-    // Handle profile image if it was uploaded
     let profilePictureUrl = pendingRegistration.profilePictureUrl
     if (req.file) {
       // New profile image was provided with verification request
@@ -91,7 +121,7 @@ const registerPlayer = asyncHandler(async (req, res) => {
       }
     }
 
-    // To avoid double-hashing, create the player in two steps
+    // Create permanent player account
     const playerData = {
       name: pendingRegistration.name,
       email: pendingRegistration.email,
@@ -102,11 +132,9 @@ const registerPlayer = asyncHandler(async (req, res) => {
       isVerified: true,
     }
 
-    // Create player without password first
+    // Create player without password first to avoid double-hashing
     const player = new PlayerAuth(playerData)
-
-    // Set password directly (it's already hashed) and skip mongoose validation
-    player.password = pendingRegistration.password
+    player.password = pendingRegistration.password // Already hashed
     await player.save({ validateModifiedOnly: true })
 
     // Delete the temporary registration
@@ -115,32 +143,62 @@ const registerPlayer = asyncHandler(async (req, res) => {
     // Send welcome email
     await sendWelcomeEmail(player.email, player.name)
 
-    // Return the created player without sensitive data
+    // Generate tokens for auto-login after registration
+    const { accessToken, refreshToken } = generateTokens(player)
+
+    // Save refresh token
+    player.refreshToken = refreshToken
+    await player.save({ validateBeforeSave: false })
+
+    // Return the created player with tokens for auto-login
     const createdPlayer = await PlayerAuth.findById(player._id).select(
       "-password -refreshToken -otp"
     )
 
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    }
+
     return res
       .status(201)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           201,
-          createdPlayer,
-          "Registration successful! Your account has been created"
+          {
+            player: createdPlayer,
+            accessToken,
+            refreshToken,
+          },
+          "Registration successful! Your account has been created and you are now logged in."
         )
       )
   }
 
-  // 5. Initial registration request (no OTP)
+  // 5. Initial registration request (no OTP provided)
 
   // 5a. Check for existing pending registration
   const existingRegistration = await PlayerRegistration.findOne({ email })
 
   if (existingRegistration) {
+    // Check if username is different and if it's already taken
+    if (existingRegistration.username !== username) {
+      const usernameExists = await PlayerRegistration.findOne({ 
+        username, 
+        email: { $ne: email } 
+      }) || await PlayerAuth.findOne({ username })
+      
+      if (usernameExists) {
+        throw new ApiError(409, "Username is already taken")
+      }
+    }
+
     // Generate new OTP for existing registration
     const { otp: newOTP, expiryTime } = generateOTP()
 
-    // Update the existing registration
+    // Update the existing registration with new data
     existingRegistration.name = name
     existingRegistration.username = username
     existingRegistration.password = password
@@ -166,17 +224,32 @@ const registerPlayer = asyncHandler(async (req, res) => {
     await sendVerificationEmail(email, newOTP)
 
     return res
-      .status(202)
+      .status(409)
       .json(
         new ApiResponse(
-          202,
-          { email, requiresVerification: true },
-          "A new verification code has been sent to your email"
+          409,
+          { 
+            email, 
+            requiresVerification: true,
+            isExistingRegistration: true,
+            redirectToOtp: true,
+            expiresIn: "1 hour",
+            message: "You already started registration with this email. A new verification code has been sent." 
+          },
+          "Registration in progress. Please verify your email to complete registration."
         )
       )
   }
 
   // 5b. Create new pending registration
+
+  // Check if username is already taken (in both collections)
+  const usernameExists = await PlayerRegistration.findOne({ username }) || 
+                        await PlayerAuth.findOne({ username })
+  
+  if (usernameExists) {
+    throw new ApiError(409, "Username is already taken")
+  }
 
   // Handle profile image upload if provided
   let profilePictureUrl = null
@@ -190,7 +263,7 @@ const registerPlayer = asyncHandler(async (req, res) => {
   // Generate OTP
   const { otp: newOTP, expiryTime } = generateOTP()
 
-  // Create temporary registration record
+  // Create temporary registration record (will auto-delete after 1 hour)
   const registrationData = await PlayerRegistration.create({
     name,
     email,
@@ -218,8 +291,15 @@ const registerPlayer = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         202,
-        { email, requiresVerification: true },
-        "Verification code sent to your email. Please verify to complete registration"
+        { 
+          email, 
+          requiresVerification: true,
+          isNewRegistration: true,
+          redirectToOtp: true,
+          expiresIn: "1 hour",
+          message: "Registration started successfully. Please check your email for verification code." 
+        },
+        "Verification code sent to your email. Please verify within 1 hour to complete registration."
       )
     )
 })
@@ -446,10 +526,17 @@ const loginPlayer = asyncHandler(async (req, res) => {
       // Send OTP email
       await sendVerificationEmail(email, otp)
 
-      throw new ApiError(
-        403,
-        "Account not verified. A new verification code has been sent to your email",
-        { requiresVerification: true }
+      // Return 200 status with verification required flag instead of throwing 403 error
+      return res.status(200).json(
+        new ApiResponse(
+          200,
+          { 
+            requiresVerification: true,
+            email: email,
+            message: "Account not verified. A new verification code has been sent to your email"
+          },
+          "Please verify your email to complete login"
+        )
       )
     }
 

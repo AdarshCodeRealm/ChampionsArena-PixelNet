@@ -36,12 +36,26 @@ export const AuthProvider = ({ children }) => {
       async (config) => {
         // Don't add auth headers for registration and OTP verification endpoints
         const isPublicEndpoint = config.url?.includes('/player-auth/register') || 
-                                config.url?.includes('/player-auth') || 
+                                config.url?.includes('/player-auth/login') || 
+                                config.url?.includes('/player-auth/verify-email') ||
+                                config.url?.includes('/player-auth/resend-otp') ||
+                                config.url?.includes('/player-auth/forgot-password') ||
+                                config.url?.includes('/player-auth/reset-password') ||
+                                config.url?.includes('/player-auth/refresh-token') ||
                                 config.url?.includes('/auth/verify-otp') || 
                                 config.url?.includes('/auth/resend-otp') ||
                                 config.url?.includes('/auth/initiate-otp') ||
                                 config.url?.includes('/auth/forgot-password') ||
-                                config.url?.includes('/auth/reset-password');
+                                config.url?.includes('/auth/reset-password') ||
+                                config.url?.includes('/refresh-token') ||
+                                // Add organizer public endpoints too
+                                config.url?.includes('/organizer-auth/register') ||
+                                config.url?.includes('/organizer-auth/login') ||
+                                config.url?.includes('/organizer-auth/verify-otp') ||
+                                // Add public tournament endpoints
+                                config.url?.includes('/tournaments') && config.method?.toLowerCase() === 'get';
+        
+        console.log('Request interceptor - URL:', config.url, 'Is Public:', isPublicEndpoint);
         
         if (token && !isPublicEndpoint) {
           config.headers = {
@@ -64,26 +78,43 @@ export const AuthProvider = ({ children }) => {
         
         // Only try to refresh token for protected endpoints that require authentication
         const isPublicEndpoint = originalRequest.url?.includes('/player-auth/register') || 
-                                originalRequest.url?.includes('/player-auth') || 
+                                originalRequest.url?.includes('/player-auth/login') || 
+                                originalRequest.url?.includes('/player-auth/verify-email') ||
+                                originalRequest.url?.includes('/player-auth/resend-otp') ||
+                                originalRequest.url?.includes('/player-auth/forgot-password') ||
+                                originalRequest.url?.includes('/player-auth/reset-password') ||
+                                originalRequest.url?.includes('/player-auth/refresh-token') ||
                                 originalRequest.url?.includes('/auth/verify-otp') || 
                                 originalRequest.url?.includes('/auth/resend-otp') ||
                                 originalRequest.url?.includes('/auth/initiate-otp') ||
                                 originalRequest.url?.includes('/auth/forgot-password') ||
-                                originalRequest.url?.includes('/auth/reset-password');
+                                originalRequest.url?.includes('/auth/reset-password') ||
+                                originalRequest.url?.includes('/refresh-token') ||
+                                // Add organizer public endpoints too
+                                originalRequest.url?.includes('/organizer-auth/register') ||
+                                originalRequest.url?.includes('/organizer-auth/login') ||
+                                originalRequest.url?.includes('/organizer-auth/verify-otp') ||
+                                // Add public tournament endpoints
+                                originalRequest.url?.includes('/tournaments') && originalRequest.method?.toLowerCase() === 'get';
+        
+        console.log('Response interceptor - URL:', originalRequest.url, 'Is Public:', isPublicEndpoint);
         
         // If error is 401 and we haven't tried to refresh token yet and it's not a public endpoint
         if (error.response?.status === 401 && !originalRequest._retry && !isPublicEndpoint && refreshToken) {
           originalRequest._retry = true;
           
           try {
+            console.log('Attempting token refresh...');
             // Try to refresh the token
-            const response = await axios.post(`${API_URL}${AUTH_ROUTES.REFRESH_TOKEN}`, {
+            const response = await axios.post(`${API_URL}/player-auth/refresh-token`, {
               refreshToken,
             });
             
             if (response.data.success) {
               // Update tokens
               const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
+              
+              console.log('Token refresh successful');
               
               // Store new tokens securely
               await storeAuthTokens(newAccessToken, newRefreshToken);
@@ -92,18 +123,20 @@ export const AuthProvider = ({ children }) => {
               setUserToken(newAccessToken);
               setRefreshToken(newRefreshToken);
               
-              // Update Authorization header
+              // Update Authorization header for future requests
               axios.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
               
               // Retry original request with new token
               originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
               return axios(originalRequest);
             } else {
+              console.log('Token refresh failed - clearing auth data');
               // If refresh fails, logout
               await clearAuthData();
               return Promise.reject(error);
             }
           } catch (refreshError) {
+            console.log('Token refresh error:', refreshError);
             // If refresh fails, logout
             await clearAuthData();
             return Promise.reject(refreshError);
@@ -195,11 +228,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const registerWithOtp = async (userData, profileImage = null) => {
+    console.log('Registration data:', userData);
     setIsLoading(true);
     setAuthError(null);
     try {
       let formData;
-      let headers;
+      let headers = {};
       
       if (profileImage) {
         // Set up form data for sending profile image
@@ -220,17 +254,76 @@ export const AuthProvider = ({ children }) => {
         
         headers = { 'Content-Type': 'multipart/form-data' };
       }
+      console.log('Form data prepared, sending registration request...');
       
       // Send registration request - NO AUTH TOKEN NEEDED for registration
-      const response = await axios.post(
-        `${API_URL}${AUTH_ROUTES.PLAYER_AUTH}`, 
+      // Create a clean axios instance without interceptors for registration
+      const cleanAxios = axios.create({
+        timeout: 30000, // 30 second timeout
+      });
+      
+      const response = await cleanAxios.post(
+        `${API_URL}${AUTH_ROUTES.PLAYER_REGISTER}`, 
         profileImage ? formData : userData,
         { headers }
       );
+      console.log('Registration response status:', response.status);
+      console.log('Registration response data:', response.data);
+      
+      // Handle different response scenarios
+      if (response.status === 202) {
+        // New registration started - redirect to OTP
+        return {
+          success: true,
+          requiresVerification: true,
+          redirectToOtp: response.data.data.redirectToOtp,
+          isExistingRegistration: false,
+          email: response.data.data.email,
+          message: response.data.data.message || response.data.message,
+          expiresIn: response.data.data.expiresIn
+        };
+      } else if (response.status === 201) {
+        // Registration completed with auto-login
+        const { accessToken, refreshToken, player } = response.data.data;
+        
+        // Auto-login the user after successful registration
+        await login(accessToken, refreshToken, player, true);
+        
+        return {
+          success: true,
+          requiresVerification: false,
+          autoLogin: true,
+          user: player,
+          message: response.data.message
+        };
+      }
       
       return response.data;
     } catch (error) {
       console.log('Registration error:', error.response?.data || error.message);
+      
+      // Handle specific error cases
+      if (error.response?.status === 409) {
+        const errorData = error.response.data;
+        
+        // Check if it's an existing registration that needs verification
+        if (errorData.data?.requiresVerification && errorData.data?.redirectToOtp) {
+          return {
+            success: true, // Change this to true so it's handled properly
+            requiresVerification: true,
+            redirectToOtp: true,
+            isExistingRegistration: errorData.data.isExistingRegistration || true,
+            email: errorData.data.email,
+            message: errorData.data.message || errorData.message,
+            expiresIn: errorData.data.expiresIn
+          };
+        }
+        
+        // Regular conflict error (email/username taken)
+        setAuthError(errorData.message || 'Registration failed');
+        throw error;
+      }
+      
       // Don't set auth error if it's just "No refresh token available" during registration
       if (!error.message?.includes('No refresh token available')) {
         setAuthError(error.response?.data?.message || 'Registration failed');
@@ -245,30 +338,80 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(true);
     setAuthError(null);
     try {
-      const response = await axios.post(`${API_URL}${AUTH_ROUTES.VERIFY_OTP}`, {
+      // Use a clean axios instance for OTP verification to avoid interceptor issues
+      const cleanAxios = axios.create({
+        timeout: 30000,
+      });
+      
+      // For registration OTP verification, send OTP in the registration endpoint
+      const response = await cleanAxios.post(`${API_URL}/player-auth/register`, {
         email,
         otp
       });
       
+      console.log('OTP verification response status:', response.status);
+      console.log('OTP verification response data:', response.data);
+      
       if (response.data.success) {
-        const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
-        console.log("OTP verification successful - user data:", user);
-        
-        // Store tokens and update state
-        await login(accessToken, newRefreshToken, user, rememberMe);
-        
-        // Additional check to ensure userToken is set
-        if (!userToken) {
-          setUserToken(accessToken);
+        // Check if this is a registration completion with auto-login (status 201)
+        if (response.status === 201 && response.data.data.player && response.data.data.accessToken) {
+          const { accessToken, refreshToken: newRefreshToken, player } = response.data.data;
+          console.log("Registration OTP verification successful - auto login with player data:", player);
+          
+          // Auto-login the user after successful registration
+          await login(accessToken, newRefreshToken, player, rememberMe);
+          
+          return { 
+            success: true, 
+            user: player,
+            autoLogin: true,
+            message: response.data.message 
+          };
         }
         
-        return { success: true, user };
+        // Handle regular OTP verification (if using separate verify-email endpoint)
+        if (response.data.data && response.data.data.verified) {
+          return { 
+            success: true, 
+            verified: true,
+            message: response.data.message 
+          };
+        }
+        
+        // Fallback for other OTP verification scenarios
+        const { accessToken, refreshToken: newRefreshToken, user, player } = response.data.data || {};
+        const userData = player || user; // Server may return either 'player' or 'user'
+        
+        if (accessToken && newRefreshToken && userData) {
+          console.log("OTP verification successful - user data:", userData);
+          
+          // Store tokens and update state
+          await login(accessToken, newRefreshToken, userData, rememberMe);
+          
+          return { success: true, user: userData };
+        }
+        
+        return { success: true, message: response.data.message || 'Verification successful' };
       }
-      return { success: false, message: 'Verification failed' };
+      return { success: false, message: response.data.message || 'Verification failed' };
     } catch (error) {
       console.log('OTP verification error:', error.response?.data || error.message);
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        setAuthError('Registration expired. Please start registration again.');
+        return { 
+          success: false, 
+          expired: true,
+          message: 'Registration expired. Please start registration again.' 
+        };
+      }
+      
       setAuthError(error.response?.data?.message || 'OTP verification failed');
-      return { success: false, message: error.response?.data?.message || 'OTP verification failed' };
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'OTP verification failed' 
+      };
     } finally {
       setIsLoading(false);
     }
@@ -276,7 +419,12 @@ export const AuthProvider = ({ children }) => {
 
   const resendOtp = async (email) => {
     try {
-      const response = await axios.post(`${API_URL}${AUTH_ROUTES.RESEND_OTP}`, { email });
+      // Use a clean axios instance for resend OTP to avoid interceptor issues
+      const cleanAxios = axios.create({
+        timeout: 30000,
+      });
+      
+      const response = await cleanAxios.post(`${API_URL}/player-auth/resend-otp`, { email });
       return response.data;
     } catch (error) {
       console.log('Resend OTP error:', error.response?.data || error.message);

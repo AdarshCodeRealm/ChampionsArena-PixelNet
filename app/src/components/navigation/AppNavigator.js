@@ -6,6 +6,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { ActivityIndicator, View } from 'react-native';
 import HomeScreen from '../../components/screens/HomeScreen';
 import MatchesScreen from '../../components/screens/MatchesScreen';
+import TournamentDetailsScreen from '../../components/screens/TournamentDetailsScreen';
 import LeaderboardScreen from '../../components/screens/LeaderboardScreen';
 import ProfileScreen from '../../components/screens/ProfileScreen';
 import ManageMatchesScreen from '../../components/screens/ManageMatchesScreen';
@@ -44,6 +45,16 @@ const MyTheme = {
     border: colors.border,
     notification: colors.primary,
   },
+};
+
+// Main Stack Navigator that includes tabs and detail screens
+const MainStackNavigator = () => {
+  return (
+    <MainStack.Navigator screenOptions={{ headerShown: false }}>
+      <MainStack.Screen name="Tabs" component={TabNavigator} />
+      <MainStack.Screen name="TournamentDetails" component={TournamentDetailsScreen} />
+    </MainStack.Navigator>
+  );
 };
 
 // Main Tab Navigator
@@ -130,7 +141,7 @@ const AppNavigator = () => {
       >
         {userToken || isGuestMode ? (
           // User is logged in or in guest mode - Show Main App
-          <RootNavigator.Screen name="Main" component={TabNavigator} />
+          <RootNavigator.Screen name="Main" component={MainStackNavigator} />
         ) : (
           // User is not logged in - Show Auth Screens
           <RootNavigator.Screen name="Auth">

@@ -166,6 +166,62 @@ class TournamentService {
   }
 
   /**
+   * Register a team for a tournament
+   * @param {Object} registrationData - Registration data
+   * @returns {Promise<Object>} Registration result
+   */
+  async registerForTournament(registrationData) {
+    try {
+      const response = await this.client.post('/tournaments/register-team', registrationData);
+      return response.data;
+    } catch (error) {
+      this.handleError(error, 'Failed to register for tournament');
+    }
+  }
+
+  /**
+   * Get registered teams for a tournament
+   * @param {string} tournamentId - Tournament ID
+   * @returns {Promise<Array>} List of registered teams
+   */
+  async getRegisteredTeams(tournamentId) {
+    try {
+      const response = await this.client.get(`/tournaments/${tournamentId}/teams`);
+      return response.data.data;
+    } catch (error) {
+      this.handleError(error, 'Failed to fetch registered teams');
+    }
+  }
+
+  /**
+   * Process payment for tournament registration
+   * @param {Object} paymentData - Payment data
+   * @returns {Promise<Object>} Payment result
+   */
+  async processPayment(paymentData) {
+    try {
+      const response = await this.client.post('/payments/phonepe/initiate', paymentData);
+      return response.data;
+    } catch (error) {
+      this.handleError(error, 'Failed to process payment');
+    }
+  }
+
+  /**
+   * Check payment status
+   * @param {string} transactionId - Transaction ID
+   * @returns {Promise<Object>} Payment status
+   */
+  async checkPaymentStatus(transactionId) {
+    try {
+      const response = await this.client.get(`/payments/status/${transactionId}`);
+      return response.data;
+    } catch (error) {
+      this.handleError(error, 'Failed to check payment status');
+    }
+  }
+
+  /**
    * Handle API errors
    * @param {Error} error - Error object
    * @param {string} defaultMessage - Default error message
@@ -186,4 +242,4 @@ class TournamentService {
   }
 }
 
-export default new TournamentService(); 
+export default new TournamentService();

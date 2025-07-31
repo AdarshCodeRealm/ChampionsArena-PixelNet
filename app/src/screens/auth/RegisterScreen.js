@@ -18,6 +18,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../styles/globalStyles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
+import CustomAlert from '../../components/ui/CustomAlert';
+import OtpVerificationModal from '../../components/ui/OtpVerificationModal';
 
 const RegisterScreen = ({ route, navigation }) => {
   // Get email from navigation params if redirected from login screen
@@ -29,6 +31,34 @@ const RegisterScreen = ({ route, navigation }) => {
   // State for registration
   const [isLoading, setIsLoading] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [useDummyData, setUseDummyData] = useState(false);
+  
+  // OTP Modal state
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [registrationEmail, setRegistrationEmail] = useState('');
+  
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+    primaryButtonText: 'OK',
+    secondaryButtonText: null,
+    onPrimaryPress: null,
+    onSecondaryPress: null,
+  });
+
+  // Dummy data for testing
+  const dummyData = {
+    email: 'adarshramgirwar2@gmail.com',
+    name: 'Test User',
+    username: 'testuser1231',
+    password: 'TestPass123!',
+    confirmPassword: 'TestPass123!',
+    uid: '1234567890',
+    mobileNumber: '9876543210',
+  };
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -150,6 +180,24 @@ const RegisterScreen = ({ route, navigation }) => {
     }
   };
 
+  // Show custom alert helper
+  const showCustomAlert = (config) => {
+    setAlertConfig({
+      visible: true,
+      type: 'info',
+      primaryButtonText: 'OK',
+      secondaryButtonText: null,
+      onPrimaryPress: null,
+      onSecondaryPress: null,
+      ...config,
+    });
+  };
+
+  // Close custom alert
+  const hideCustomAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
+
   // Handle registration
   const handleRegister = async () => {
     if (!validateForm()) return;
@@ -166,25 +214,65 @@ const RegisterScreen = ({ route, navigation }) => {
       };
 
       // Register with OTP using our enhanced AuthContext
+      console.log('Registering with OTP...');
       const response = await registerWithOtp(userData, profileImage);
+      console.log('Registration response:', response);
       
       if (response.success) {
-        // Navigate to OTP verification screen
-        navigation.navigate('OtpVerification', {
-          email: formData.email,
-          flowType: 'registration',
-          title: 'Verify Registration'
-        });
+        if (response.requiresVerification) {
+          // Show OTP modal instead of navigating to separate screen
+          setRegistrationEmail(formData.email);
+          setShowOtpModal(true);
+        } else if (response.autoLogin) {
+          // Registration completed with auto-login (shouldn't happen in normal flow, but handle it)
+          console.log('Registration completed with auto-login');
+          // AuthContext will handle the login state update
+        }
       } else {
         Alert.alert('Registration Failed', response.message || 'Failed to initiate registration');
       }
     } catch (error) {
-      // Display error from AuthContext if available
-      Alert.alert('Registration Error', authError || error.message || 'Something went wrong during registration');
+      console.log('Registration error details:', error);
+      
+      // Check if it's a 409 error (email already registered) - but now this should be handled by AuthContext
+      if (error.response && error.response.status === 409) {
+        const errorMessage = error.response.data?.message || authError || error.message;
+        
+        // Check if it's the specific "email already registered and verified" error
+        if (errorMessage.includes('already registered and verified')) {
+          showCustomAlert({
+            type: 'warning',
+            title: 'Account Already Exists',
+            message: 'An account with this email already exists and is verified. Would you like to sign in instead?',
+            primaryButtonText: 'Sign In',
+            secondaryButtonText: 'Cancel',
+            onPrimaryPress: () => {
+              hideCustomAlert();
+              navigation.navigate('Login', { email: formData.email });
+            },
+            onSecondaryPress: hideCustomAlert,
+          });
+        } else {
+          // For existing registration that needs verification, show OTP modal
+          setRegistrationEmail(formData.email);
+          setShowOtpModal(true);
+          hideCustomAlert();
+        }
+      } else {
+        // Handle other errors with generic alert
+        Alert.alert('Registration Error', authError || error.message || 'Something went wrong during registration');
+      }
     } finally {
       // Always reset loading state, even if an error occurs
       setIsLoading(false);
     }
+  };
+
+  // Handle OTP verification success
+  const handleOtpSuccess = (response) => {
+    console.log('OTP verification successful:', response);
+    // AuthContext will handle the login state update automatically
+    // The user will be redirected to the main app
   };
 
   const openPrivacyPolicy = () => {
@@ -193,6 +281,26 @@ const RegisterScreen = ({ route, navigation }) => {
 
   const openTermsOfService = () => {
     Linking.openURL('https://championsarena.com/terms-of-service');
+  };
+
+  // Toggle dummy data
+  const toggleDummyData = () => {
+    if (!useDummyData) {
+      setFormData(dummyData);
+      setPolicyAccepted(true);
+    } else {
+      setFormData({
+        email: routeEmail || '',
+        name: '',
+        username: '',
+        password: '',
+        confirmPassword: '',
+        uid: '',
+        mobileNumber: '',
+      });
+      setPolicyAccepted(false);
+    }
+    setUseDummyData(!useDummyData);
   };
 
   return (
@@ -383,6 +491,20 @@ const RegisterScreen = ({ route, navigation }) => {
                 </Text>
               </TouchableOpacity>
 
+              {/* Dummy Data Toggle */}
+              <View style={styles.dummyDataContainer}>
+                <Text style={styles.dummyDataLabel}>Use Dummy Data</Text>
+                <TouchableOpacity 
+                  style={[styles.dummyDataButton, useDummyData && styles.dummyDataButtonActive]}
+                  onPress={toggleDummyData}
+                >
+                  <Ionicons name={useDummyData ? "checkmark-circle" : "circle-outline"} size={24} color="#fff" />
+                  <Text style={styles.dummyDataButtonText}>
+                    {useDummyData ? ' Dummy data enabled' : ' Enable dummy data'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
                 style={[styles.registerButton, isLoading && styles.buttonDisabled]}
                 onPress={handleRegister}
@@ -413,6 +535,25 @@ const RegisterScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             </View>
           </ScrollView>
+
+          <CustomAlert
+            visible={alertConfig.visible}
+            type={alertConfig.type}
+            title={alertConfig.title}
+            message={alertConfig.message}
+            primaryButtonText={alertConfig.primaryButtonText}
+            secondaryButtonText={alertConfig.secondaryButtonText}
+            onPrimaryPress={alertConfig.onPrimaryPress}
+            onSecondaryPress={alertConfig.onSecondaryPress}
+            onClose={hideCustomAlert}
+          />
+
+          <OtpVerificationModal
+            visible={showOtpModal}
+            email={registrationEmail}
+            onClose={() => setShowOtpModal(false)}
+            onSuccess={handleOtpSuccess}
+          />
         </KeyboardAvoidingView>
       </View>
     </ImageBackground>
@@ -602,6 +743,35 @@ const styles = StyleSheet.create({
   footerDot: {
     color: '#ddd',
     paddingHorizontal: 8,
+  },
+  dummyDataContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  dummyDataLabel: {
+    color: '#eee',
+    fontSize: 14,
+  },
+  dummyDataButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  dummyDataButtonActive: {
+    backgroundColor: colors.secondary,
+  },
+  dummyDataButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 8,
   },
 });
 

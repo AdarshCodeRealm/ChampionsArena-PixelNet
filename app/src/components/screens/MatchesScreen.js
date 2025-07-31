@@ -11,45 +11,6 @@ import { colors } from '../../styles/globalStyles';
 import { useAuth } from '../../contexts/AuthContext';
 import tournamentService from '../../services/tournamentService';
 
-// API Base URL - replace with your actual server IP when testing
-const API_BASE_URL = 'https://localhost:8000/api/v1'; // Use 10.0.2.2 for Android emulator
-
-// Mock data for fallback
-const FALLBACK_TOURNAMENTS = [
-  { 
-    id: '1', 
-    name: 'Free Fire Summer Championship', 
-    game: 'Free Fire MAX',
-    prize: '$1,000', 
-    date: 'June 15, 2023',
-    registeredTeams: 28,
-    bannerImage:'https://i.pinimg.com/474x/a6/ee/c4/a6eec4a2cd7d3afcd9a9dfd9f87dc533.jpg',
-    maxTeams: 32,
-    status: 'upcoming',
-  },
-  { 
-    id: '2', 
-    name: 'Free Fire Winter League', 
-    game: 'Free Fire MAX',
-    prize: '$500', 
-    date: 'December 5, 2023',
-    registeredTeams: 12,
-    maxTeams: 16,
-    status: 'upcoming',
-  },
-  { 
-    id: '3', 
-    name: 'Free Fire Spring Tournament', 
-    game: 'Free Fire MAX',
-    prize: '$750', 
-    date: 'March 10, 2023',
-    registeredTeams: 24,
-    bannerImage:'https://i.pinimg.com/474x/a6/ee/c4/a6eec4a2cd7d3afcd9a9dfd9f87dc533.jpg',
-    maxTeams: 24,
-    status: 'completed',
-  },
-];
-
 const FALLBACK_ENROLLED_TOURNAMENTS = [
   { 
     id: '1', 
@@ -95,28 +56,35 @@ const MatchesScreen = ({ navigation }) => {
     setLoading(true);
     setError(null);
     try {
+      console.log('Fetching tournaments from API...');
       const tournamentsData = await tournamentService.getAllTournaments({
-        sort: 'updatedAt',
+        sort: 'createdAt',
         order: 'desc',
-        limit: 20
+        limit: 50
       });
 
-      if (tournamentsData && tournamentsData.tournaments) {
-        // Use the actual API response structure
+      console.log('Tournaments API response:', tournamentsData);
+
+      // Handle the correct API response structure
+      if (tournamentsData && tournamentsData.data && Array.isArray(tournamentsData.data)) {
+        setTournaments(tournamentsData.data);
+        console.log(`Loaded ${tournamentsData.data.length} tournaments from API`);
+      } else if (tournamentsData && tournamentsData.tournaments && Array.isArray(tournamentsData.tournaments)) {
+        // Fallback for different response structure
         setTournaments(tournamentsData.tournaments);
+        console.log(`Loaded ${tournamentsData.tournaments.length} tournaments from API`);
       } else if (tournamentsData && Array.isArray(tournamentsData)) {
-        // If the response is directly an array
+        // Direct array response
         setTournaments(tournamentsData);
+        console.log(`Loaded ${tournamentsData.length} tournaments from API`);
       } else {
-        // Fallback to mock data if API fails
-        console.log('No tournaments from API, using fallback data');
-        setTournaments(FALLBACK_TOURNAMENTS);
+        console.log('No valid tournament data received from API');
+        setTournaments([]);
       }
     } catch (error) {
       console.error('Error fetching tournaments:', error);
       setError(`Failed to load tournaments: ${error.message}`);
-      // Use fallback data when API fails
-      setTournaments(FALLBACK_TOURNAMENTS);
+      setTournaments([]);
     } finally {
       setLoading(false);
     }
@@ -124,7 +92,7 @@ const MatchesScreen = ({ navigation }) => {
 
   // Fetch enrolled tournaments from API - for now just using mock data
   const fetchEnrolledTournaments = async () => {
-    // In a real implementation, this would call an API endpoint for enrolled tournaments
+    // TODO: Implement API call for enrolled tournaments when endpoint is available
     setEnrolledTournaments(FALLBACK_ENROLLED_TOURNAMENTS);
   };
 
@@ -149,7 +117,10 @@ const MatchesScreen = ({ navigation }) => {
 
   const handleTournamentPress = (tournament) => {
     console.log('Tournament pressed:', tournament);
-    // Navigate to tournament details
+    console.log('Debug: register team 200'); // This is the debug message you're seeing
+    
+    // Navigate to tournament details screen where registration is handled
+    navigation.navigate('TournamentDetails', { tournament });
   };
 
   const handleTeamDetailsPress = (tournament) => {
@@ -215,6 +186,12 @@ const MatchesScreen = ({ navigation }) => {
         {error && (
           <View style={{ padding: 10, backgroundColor: 'rgba(255, 0, 0, 0.1)', marginBottom: 10, borderRadius: 5 }}>
             <Text style={{ color: colors.status.danger }}>{error}</Text>
+            <TouchableOpacity 
+              onPress={fetchTournaments}
+              style={{ marginTop: 5, padding: 5 }}
+            >
+              <Text style={{ color: colors.primary, textDecorationLine: 'underline' }}>Tap to retry</Text>
+            </TouchableOpacity>
           </View>
         )}
         
@@ -231,7 +208,7 @@ const MatchesScreen = ({ navigation }) => {
             {tournaments.length > 0 ? (
               tournaments.map((tournament) => (
                 <TournamentCard 
-                  key={tournament.id}
+                  key={tournament._id || tournament.id}
                   tournament={tournament}
                   onPress={handleTournamentPress}
                 />
@@ -240,8 +217,16 @@ const MatchesScreen = ({ navigation }) => {
               <View style={{ alignItems: 'center', paddingVertical: 30 }}>
                 <Ionicons name="calendar-outline" size={50} color={colors.text.secondary} />
                 <Text style={{ color: colors.text.secondary, marginTop: 10, textAlign: 'center' }}>
-                  No tournaments available right now.
+                  {error ? 'Failed to load tournaments.' : 'No tournaments available right now.'}
                 </Text>
+                {error && (
+                  <TouchableOpacity 
+                    onPress={fetchTournaments}
+                    style={{ marginTop: 10, padding: 10, backgroundColor: colors.primary, borderRadius: 5 }}
+                  >
+                    <Text style={{ color: 'white' }}>Retry</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </>

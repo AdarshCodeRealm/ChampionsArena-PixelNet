@@ -8,6 +8,10 @@ import { API_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY, AUTH_ROUTES } fro
  * Includes methods for persistent authentication
  */
 class AuthService {
+  constructor() {
+    this.setupAxiosInterceptors();
+  }
+
   /**
    * Register a new player
    * 
@@ -530,20 +534,25 @@ class AuthService {
     try {
       const authData = await this.getStoredAuthData();
       if (!authData || !authData.refreshToken) {
-        throw new Error("No refresh token available");
+        throw new Error("No refresh token available.");
       }
 
-      const response = await axios.post(`${API_URL}/auth/refresh-token`, {
+      const response = await axios.post(`${API_URL}/player-auth/refresh-token`, {
         refreshToken: authData.refreshToken
       });
 
       if (response.data.success) {
         // Update stored tokens
-        await this.storeAuthData({
+        const newAuthData = {
           accessToken: response.data.data.accessToken,
           refreshToken: response.data.data.refreshToken,
           user: authData.user
-        });
+        };
+        
+        await this.storeAuthData(newAuthData);
+        
+        // Update global axios defaults
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.accessToken}`;
       }
 
       return response.data;
@@ -565,8 +574,18 @@ class AuthService {
       async (error) => {
         const originalRequest = error.config;
         
+        // Check if it's a public endpoint that doesn't need auth
+        const isPublicEndpoint = originalRequest.url?.includes('/player-auth/register') || 
+                                originalRequest.url?.includes('/player-auth/login') || 
+                                originalRequest.url?.includes('/auth/verify-otp') || 
+                                originalRequest.url?.includes('/auth/resend-otp') ||
+                                originalRequest.url?.includes('/auth/initiate-otp') ||
+                                originalRequest.url?.includes('/auth/forgot-password') ||
+                                originalRequest.url?.includes('/auth/reset-password') ||
+                                originalRequest.url?.includes('/refresh-token');
+        
         // If the error is due to an expired token and we haven't tried to refresh yet
-        if (error.response && error.response.status === 401 && !originalRequest._retry) {
+        if (error.response && error.response.status === 401 && !originalRequest._retry && !isPublicEndpoint) {
           originalRequest._retry = true;
           
           try {
@@ -574,8 +593,7 @@ class AuthService {
             const refreshResponse = await this.refreshToken();
             
             if (refreshResponse.success) {
-              // Update the authorization header
-              axios.defaults.headers.common['Authorization'] = 'Bearer ' + refreshResponse.data.accessToken;
+              // Update the authorization header for the original request
               originalRequest.headers['Authorization'] = 'Bearer ' + refreshResponse.data.accessToken;
               
               // Retry the original request
@@ -692,8 +710,5 @@ class AuthService {
 
 // Create a singleton instance
 const authService = new AuthService();
-
-// Set up interceptors for token refresh
-authService.setupAxiosInterceptors();
 
 export default authService;

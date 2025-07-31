@@ -20,8 +20,13 @@ const TournamentCard = ({ tournament, onPress }) => {
   const tournamentGame = tournament?.game || tournament?.gameType || 'Game';
   const tournamentPrize = tournament?.prize || tournament?.prizePool || '0';
   const tournamentDate = tournament?.date || tournament?.startDate || 'TBD';
-  const tournamentOrganizer = tournament?.organizer || tournament?.organizerName || 'Organizer';
-  const registeredTeams = tournament?.registeredTeams || tournament?.currentParticipants || 0;
+  
+  // Handle organizer - it can be an object or a string
+  const tournamentOrganizer = tournament?.organizerName || 
+    (typeof tournament?.organizer === 'object' ? tournament?.organizer?.name : tournament?.organizer) || 
+    'Organizer';
+    
+  const registeredTeams = Array.isArray(tournament?.registeredTeams) ? tournament?.registeredTeams?.length : tournament?.registeredTeams || 0;
   const maxTeams = tournament?.maxTeams || tournament?.maxParticipants || 0;
   const bannerImage = tournament?.bannerImage || tournament?.image || 'https://i.pinimg.com/736x/41/b9/ee/41b9eed394ab758224d56518d4b2d41a.jpg';
 
@@ -111,7 +116,7 @@ const TournamentCard = ({ tournament, onPress }) => {
           overflow: 'hidden',
           textAlign: 'center'
         }]}>
-          {tournament?.status === 'upcoming' ? 'Register Now' : 'View Details'}
+          {tournament?.status === 'open' ? 'View Details' : 'View Details'}
         </Text>
       </TouchableOpacity>
     </TouchableOpacity>
