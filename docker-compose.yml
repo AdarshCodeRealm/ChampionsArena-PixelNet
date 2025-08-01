@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: champions-arena-db
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: champions_arena
+    volumes:
+      - mongodb_data:/data/db
+      - ./server/scripts:/docker-entrypoint-initdb.d
+    networks:
+      - champions-arena-network
+
+  # Backend API Server
+  server:
+    build: ./server
+    container_name: champions-arena-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/champions_arena?authSource=admin
+      JWT_SECRET: your-jwt-secret-key-change-this-in-production
+      JWT_REFRESH_SECRET: your-jwt-refresh-secret-key-change-this-in-production
+      CLOUDINARY_CLOUD_NAME: your-cloudinary-cloud-name
+      CLOUDINARY_API_KEY: your-cloudinary-api-key
+      CLOUDINARY_API_SECRET: your-cloudinary-api-secret
+      EMAIL_HOST: smtp.gmail.com
+      EMAIL_PORT: 587
+      EMAIL_USER: your-email@gmail.com
+      EMAIL_PASS: your-email-password
+      PHONEPE_MERCHANT_ID: your-phonepe-merchant-id
+      PHONEPE_SALT_KEY: your-phonepe-salt-key
+      PHONEPE_SALT_INDEX: 1
+      PHONEPE_ENVIRONMENT: SANDBOX
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - mongodb
+    volumes:
+      - ./server/public:/app/public
+    networks:
+      - champions-arena-network
+
+  # Web Frontend
+  web:
+    build: ./web
+    container_name: champions-arena-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+      VITE_FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - server
+    networks:
+      - champions-arena-network
+
+  # Mobile App (Expo Web)
+  app:
+    build: ./app
+    container_name: champions-arena-app
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      EXPO_DEVTOOLS_LISTEN_ADDRESS: 0.0.0.0
+      REACT_NATIVE_PACKAGER_HOSTNAME: 0.0.0.0
+    volumes:
+      - ./app:/app
+      - /app/node_modules
+    networks:
+      - champions-arena-network
+
+networks:
+  champions-arena-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

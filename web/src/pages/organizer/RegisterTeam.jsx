@@ -18,7 +18,7 @@ const RegisterTeam = () => {
     captainName: '',
     captainEmail: '',
     captainPhone: '',
-    members: [{ name: '', email: '', phone: '' }]
+    members: [{ uid: '' }] // Changed to only take UID
   });
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: Tournament, 2: Team, 3: Payment
@@ -267,9 +267,15 @@ const RegisterTeam = () => {
           Authorization: `Bearer ${user?.token}`,
         },
       });
-      setTournaments(response.data.data || []);
-      if (response.data.data && response.data.data.length > 0) {
-        setSelectedTournament(response.data.data[0]._id);
+      
+      // Filter out completed tournaments - only show active tournaments
+      const activeTournaments = (response.data.data || []).filter(tournament => 
+        tournament.status !== 'completed' && tournament.status !== 'cancelled'
+      );
+      
+      setTournaments(activeTournaments);
+      if (activeTournaments.length > 0) {
+        setSelectedTournament(activeTournaments[0]._id);
       }
     } catch (error) {
       console.error("Error fetching tournaments:", error);
@@ -293,7 +299,7 @@ const RegisterTeam = () => {
   const addTeamMember = () => {
     setTeamData({
       ...teamData,
-      members: [...teamData.members, { name: '', email: '', phone: '' }]
+      members: [...teamData.members, { uid: '' }] // Changed to only take UID
     });
   };
 
@@ -311,104 +317,201 @@ const RegisterTeam = () => {
       captainName: '',
       captainEmail: '',
       captainPhone: '',
-      members: [{ name: '', email: '', phone: '' }]
+      members: [{ uid: '' }] // Changed to only take UID
     });
     setRegistrationSuccess(false);
   };
 
-  // Payment Status Popup Component
-  const PaymentStatusPopup = () => {
+  // Custom Alert Component for Payment Status
+  const CustomPaymentAlert = () => {
     if (!paymentStatusPopup.show) return null;
     
     const { tournamentInfo, teamInfo } = paymentStatusPopup;
     
     return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden animate-fadeIn">
-          {/* Header */}
-          <div className={`p-6 ${paymentStatusPopup.loading ? 'bg-blue-600' : 
-                             paymentStatusPopup.success ? 'bg-gradient-to-r from-green-600 to-green-700' : 'bg-gradient-to-r from-red-600 to-red-700'}`}>
-            <h2 className="text-white text-xl font-bold">
-              {paymentStatusPopup.loading ? 'Processing Payment' : 
-               paymentStatusPopup.success ? 'Payment Successful' : 'Payment Failed'}
-            </h2>
-            <p className="text-white text-opacity-90 mt-1">
-              {paymentStatusPopup.loading ? 'Please wait while we verify your payment...' : 
-               paymentStatusPopup.success ? 'Your payment has been processed successfully!' : 'There was an issue with your payment'}
-            </p>
+      <div className="fixed inset-0 flex items-center justify-center z-[9999] bg-black bg-opacity-70 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-fadeIn transform transition-all duration-300 scale-100">
+          {/* Enhanced Header with Better Styling */}
+          <div className={`p-6 ${paymentStatusPopup.loading ? 'bg-gradient-to-r from-blue-600 to-blue-700' : 
+                             paymentStatusPopup.success ? 'bg-gradient-to-r from-green-600 to-emerald-700' : 'bg-gradient-to-r from-red-600 to-red-700'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                {paymentStatusPopup.loading ? (
+                  <FiLoader className="h-8 w-8 text-white animate-spin mr-3" />
+                ) : paymentStatusPopup.success ? (
+                  <div className="h-10 w-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
+                    <FiCheck className="h-6 w-6 text-white" />
+                  </div>
+                ) : (
+                  <div className="h-10 w-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
+                    <FiX className="h-6 w-6 text-white" />
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-white text-xl font-bold">
+                    {paymentStatusPopup.loading ? 'Processing Payment' : 
+                     paymentStatusPopup.success ? 'Payment Successful!' : 'Payment Failed'}
+                  </h2>
+                  <p className="text-white text-opacity-90 text-sm mt-1">
+                    {paymentStatusPopup.loading ? 'Please wait while we verify your payment...' : 
+                     paymentStatusPopup.success ? 'Your payment has been processed successfully!' : 'There was an issue with your payment'}
+                  </p>
+                </div>
+              </div>
+              {!paymentStatusPopup.loading && (
+                <button 
+                  onClick={() => {
+                    setPaymentStatusPopup({
+                      show: false, 
+                      success: false, 
+                      message: '', 
+                      transactionId: '', 
+                      loading: false,
+                      tournamentInfo: null,
+                      teamInfo: null
+                    });
+                    if (paymentStatusPopup.success) {
+                      resetForm();
+                    }
+                  }}
+                  className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
+                >
+                  <FiX size={20} className="text-white" />
+                </button>
+              )}
+            </div>
           </div>
           
-          {/* Body */}
+          {/* Enhanced Body Content */}
           <div className="p-6">
             {/* Loading State */}
             {paymentStatusPopup.loading ? (
-              <div className="flex flex-col items-center justify-center py-4">
-                <div className="rounded-full p-3 bg-blue-100">
-                  <FiLoader className="h-12 w-12 text-blue-600 animate-spin" />
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FiCreditCard className="h-6 w-6 text-blue-600" />
+                  </div>
                 </div>
-                <p className="mt-4 text-gray-700">Please wait while we verify your payment status...</p>
+                <p className="mt-6 text-gray-700 text-center font-medium">Verifying your payment...</p>
+                <p className="mt-2 text-gray-500 text-sm text-center">This may take a few moments</p>
               </div>
             ) : (
               <>
-                {/* Status Icon */}
-                <div className="flex items-center justify-center mb-4">
-                  {paymentStatusPopup.success ? (
-                    <div className="rounded-full p-4 bg-green-100">
-                      <FiCheck className="h-12 w-12 text-green-600" />
-                    </div>
-                  ) : (
-                    <div className="rounded-full p-4 bg-red-100">
-                      <FiX className="h-12 w-12 text-red-600" />
-                    </div>
-                  )}
+                {/* Status Message */}
+                <div className="text-center mb-6">
+                  <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${
+                    paymentStatusPopup.success ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {paymentStatusPopup.success ? (
+                      <FiCheck className="h-10 w-10 text-green-600" />
+                    ) : (
+                      <FiX className="h-10 w-10 text-red-600" />
+                    )}
+                  </div>
+                  
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {paymentStatusPopup.success ? 'Team Successfully Registered!' : 'Payment Failed'}
+                  </h3>
+                  
+                  <p className="text-gray-600">
+                    {paymentStatusPopup.message}
+                  </p>
                 </div>
                 
-                <p className="text-center text-lg text-gray-800 mb-4">
-                  {paymentStatusPopup.message}
-                </p>
-                
+                {/* Transaction ID */}
                 {paymentStatusPopup.transactionId && (
-                  <p className="text-center text-sm text-gray-600 mb-4">
-                    Transaction ID: <span className="font-mono font-medium">{paymentStatusPopup.transactionId.substring(0, 18)}...</span>
-                  </p>
+                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Transaction ID:</span>
+                      <span className="font-mono text-sm text-gray-800 bg-white px-2 py-1 rounded border">
+                        {paymentStatusPopup.transactionId.substring(0, 18)}...
+                      </span>
+                    </div>
+                  </div>
                 )}
                 
-                {/* Registration Details (only shown for successful payments) */}
+                {/* Enhanced Registration Details for Success */}
                 {paymentStatusPopup.success && teamInfo && tournamentInfo && (
-                  <div className="mt-6 border border-green-200 rounded-lg overflow-hidden">
-                    <div className="bg-green-50 px-4 py-3 border-b border-green-200">
-                      <h3 className="text-green-800 font-semibold flex items-center">
-                        <FiAward className="mr-2" /> Team Registration Details
+                  <div className="border border-green-200 rounded-xl overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50">
+                    <div className="bg-green-600 px-6 py-4">
+                      <h3 className="text-white font-semibold flex items-center">
+                        <FiAward className="mr-2" /> Registration Complete
                       </h3>
                     </div>
-                    <div className="p-4">
-                      <div className="grid grid-cols-2 gap-y-2 text-sm">
-                        <div className="text-gray-600">Tournament:</div>
-                        <div className="font-medium text-gray-900">{tournamentInfo.title}</div>
-                        
-                        <div className="text-gray-600">Team Name:</div>
-                        <div className="font-medium text-gray-900">{teamInfo.name}</div>
-                        
-                        <div className="text-gray-600">Captain:</div>
-                        <div className="font-medium text-gray-900">{teamInfo.captainName}</div>
-                        
-                        <div className="text-gray-600">Team Members:</div>
-                        <div className="font-medium text-gray-900">{teamInfo.members?.length || 0}</div>
-                        
-                        <div className="text-gray-600">Paid Amount:</div>
-                        <div className="font-medium text-gray-900">₹{tournamentInfo.entryFee || 0}</div>
-                        
-                        <div className="text-gray-600">Registration Date:</div>
-                        <div className="font-medium text-gray-900">
-                          {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600 font-medium">Tournament</p>
+                            <p className="text-gray-900 font-semibold">{tournamentInfo.title}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 font-medium">Team Name</p>
+                            <p className="text-gray-900 font-semibold">{teamInfo.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 font-medium">Captain</p>
+                            <p className="text-gray-900">{teamInfo.captainName}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 font-medium">Team Members</p>
+                            <p className="text-gray-900">{teamInfo.members?.length || 0} players</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 font-medium">Amount Paid</p>
+                            <p className="text-green-600 font-bold text-lg">₹{tournamentInfo.entryFee || 0}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 font-medium">Status</p>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
+                              Confirmed
+                            </span>
+                          </div>
                         </div>
+                        
+                        <div className="border-t border-green-200 pt-4">
+                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <p className="text-sm text-blue-700 flex items-center font-medium">
+                              <FiCalendar className="mr-2 flex-shrink-0" /> 
+                              Tournament starts on {new Date(tournamentInfo.startDate).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Team Members List */}
+                        {teamInfo.members && teamInfo.members.length > 0 && (
+                          <div className="border-t border-green-200 pt-4">
+                            <p className="text-sm text-gray-600 font-medium mb-2">Registered Players:</p>
+                            <div className="bg-white p-3 rounded-lg border">
+                              {teamInfo.members.map((member, index) => (
+                                <div key={index} className="flex items-center py-1">
+                                  <span className="text-sm text-gray-600 w-16">#{index + 1}</span>
+                                  <span className="text-sm text-gray-800 font-mono">{member.uid}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      
-                      <div className="mt-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                        <p className="text-sm text-blue-700 flex items-center">
-                          <FiCalendar className="mr-2 flex-shrink-0" /> 
-                          Tournament starts on {new Date(tournamentInfo.startDate).toLocaleDateString()}
-                        </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Error Details for Failed Payments */}
+                {!paymentStatusPopup.success && !paymentStatusPopup.loading && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-start">
+                      <FiX className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <div>
+                        <p className="text-red-800 font-medium">Payment could not be processed</p>
+                        <p className="text-red-700 text-sm mt-1">Please try again or contact support if the issue persists.</p>
                       </div>
                     </div>
                   </div>
@@ -417,14 +520,15 @@ const RegisterTeam = () => {
             )}
           </div>
           
-          {/* Footer */}
-          <div className="p-4 bg-gray-50 border-t flex justify-between">
+          {/* Enhanced Footer */}
+          <div className="bg-gray-50 px-6 py-4 border-t flex justify-between items-center">
             {paymentStatusPopup.success && !paymentStatusPopup.loading && (
               <button 
                 onClick={() => navigate('/organizer/teams')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
+                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                View Teams
+                <FiUsers className="mr-2 h-4 w-4" />
+                View All Teams
               </button>
             )}
             
@@ -443,10 +547,14 @@ const RegisterTeam = () => {
                   resetForm();
                 }
               }}
-              className={`px-4 py-2 ${paymentStatusPopup.success ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-red-600 hover:bg-red-700 text-white'} rounded-md text-sm font-medium ml-auto`}
+              className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                paymentStatusPopup.success 
+                  ? 'bg-green-100 hover:bg-green-200 text-green-800' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              } ${paymentStatusPopup.loading ? 'opacity-50 cursor-not-allowed' : ''} ml-auto`}
               disabled={paymentStatusPopup.loading}
             >
-              {paymentStatusPopup.loading ? 'Please Wait' : paymentStatusPopup.success ? 'Close' : 'Try Again'}
+              {paymentStatusPopup.loading ? 'Please Wait...' : paymentStatusPopup.success ? 'Register Another Team' : 'Try Again'}
             </button>
           </div>
         </div>
@@ -464,7 +572,7 @@ const RegisterTeam = () => {
         throw new Error('Please fill all required fields');
       }
       
-      if (teamData.members.some(member => !member.name || !member.email)) {
+      if (teamData.members.some(member => !member.uid)) {
         throw new Error('Please complete all team member details');
       }
       
@@ -479,7 +587,7 @@ const RegisterTeam = () => {
         captainEmail: teamData.captainEmail,
         captainPhone: teamData.captainPhone,
         tournamentId: selectedTournament,
-        members: teamData.members.filter(member => member.name && member.email)
+        members: teamData.members.filter(member => member.uid)
       };
       
       localStorage.setItem('pendingTeamRegistration', JSON.stringify(teamDataForStorage));
@@ -532,7 +640,7 @@ const RegisterTeam = () => {
         return;
       }
       
-      if (teamData.members.some(member => !member.name || !member.email)) {
+      if (teamData.members.some(member => !member.uid)) {
         toast.error('Please complete all team member details');
         return;
       }
@@ -572,7 +680,7 @@ const RegisterTeam = () => {
   return (
     <div className="container mx-auto px-4 py-4 max-w-6xl">
       {/* Payment Status Popup */}
-      <PaymentStatusPopup />
+      <CustomPaymentAlert />
       
       {/* Success Message Banner */}
       {registrationSuccess && !paymentStatusPopup.show && (
@@ -592,7 +700,7 @@ const RegisterTeam = () => {
                 className="text-sm font-medium text-green-700 hover:text-green-600"
               >
                 Register Another Team
-              </button>
+              </button> 
             </div>
           </div>
         </div>
@@ -744,30 +852,14 @@ const RegisterTeam = () => {
                             <FiTrash2 size={12} />
                           </button>
                         </div>
-                        <div className="grid grid-cols-3 gap-1">
+                        <div className="grid grid-cols-1 gap-1">
                           <input
                             type="text"
-                            value={member.name}
-                            onChange={(e) => handleMemberChange(index, 'name', e.target.value)}
+                            value={member.uid}
+                            onChange={(e) => handleMemberChange(index, 'uid', e.target.value)}
                             className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
-                            placeholder="Name*"
+                            placeholder="Player UID*"
                             required
-                          />
-                          <input
-                            type="email"
-                            value={member.email}
-                            onChange={(e) => handleMemberChange(index, 'email', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
-                            placeholder="Email*"
-                            required
-                          />
-                          <input
-                            type="tel"
-                            value={member.phone}
-                            onChange={(e) => handleMemberChange(index, 'phone', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
-                            placeholder="Phone"
-                            pattern="[0-9]{10}"
                           />
                         </div>
                       </div>
@@ -910,30 +1002,14 @@ const RegisterTeam = () => {
                               <FiTrash2 size={12} />
                             </button>
                           </div>
-                          <div className="grid grid-cols-3 gap-1">
+                          <div className="grid grid-cols-1 gap-1">
                             <input
                               type="text"
-                              value={member.name}
-                              onChange={(e) => handleMemberChange(index, 'name', e.target.value)}
+                              value={member.uid}
+                              onChange={(e) => handleMemberChange(index, 'uid', e.target.value)}
                               className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
-                              placeholder="Name*"
+                              placeholder="Player UID*"
                               required
-                            />
-                            <input
-                              type="email"
-                              value={member.email}
-                              onChange={(e) => handleMemberChange(index, 'email', e.target.value)}
-                              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
-                              placeholder="Email*"
-                              required
-                            />
-                            <input
-                              type="tel"
-                              value={member.phone}
-                              onChange={(e) => handleMemberChange(index, 'phone', e.target.value)}
-                              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
-                              placeholder="Phone"
-                              pattern="[0-9]{10}"
                             />
                           </div>
                         </div>

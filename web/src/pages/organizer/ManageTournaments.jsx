@@ -83,6 +83,9 @@ const ManageTournaments = () => {
   });
   const [matchImages, setMatchImages] = useState([]);
   
+  // State for match filter
+  const [matchFilter, setMatchFilter] = useState('upcoming'); // 'upcoming', 'completed', 'all'
+  
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
   
   useEffect(() => {
@@ -804,6 +807,28 @@ const ManageTournaments = () => {
                     <div className="p-4">
                       <div className="flex justify-between items-center mb-4">
                         <h4 className="text-lg font-semibold">Match Records</h4>
+                        
+                        {/* Match Filter Buttons */}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setMatchFilter('upcoming')}
+                            className={`px-3 py-1 text-sm rounded ${matchFilter === 'upcoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                          >
+                            Upcoming Matches
+                          </button>
+                          <button
+                            onClick={() => setMatchFilter('completed')}
+                            className={`px-3 py-1 text-sm rounded ${matchFilter === 'completed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                          >
+                            Completed Matches
+                          </button>
+                          <button
+                            onClick={() => setMatchFilter('all')}
+                            className={`px-3 py-1 text-sm rounded ${matchFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                          >
+                            All Matches
+                          </button>
+                        </div>
                       </div>
                       
                       {/* Form to add new match record */}
@@ -893,7 +918,14 @@ const ManageTournaments = () => {
                       {/* Display Match Records */}
                       {tournament.matches && tournament.matches.length > 0 ? (
                         <div className="space-y-4">
-                          {tournament.matches.sort((a, b) => a.matchNumber - b.matchNumber).map((match) => (
+                          {tournament.matches.sort((a, b) => a.matchNumber - b.matchNumber).filter(match => {
+                            if (matchFilter === 'upcoming') {
+                              return new Date(match.date) > new Date();
+                            } else if (matchFilter === 'completed') {
+                              return new Date(match.date) <= new Date();
+                            }
+                            return true;
+                          }).map((match) => (
                             <div key={match._id} className="bg-white border rounded-lg shadow-sm">
                               <div className="p-4">
                                 <div className="flex justify-between items-center">

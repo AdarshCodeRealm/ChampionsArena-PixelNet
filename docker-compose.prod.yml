@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: champions-arena-db-prod
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - champions-arena-network
+    # Only expose MongoDB port in development
+    # ports:
+    #   - "27017:27017"
+
+  # Backend API Server
+  server:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: champions-arena-server-prod
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      PHONEPE_MERCHANT_ID: ${PHONEPE_MERCHANT_ID}
+      PHONEPE_SALT_KEY: ${PHONEPE_SALT_KEY}
+      PHONEPE_SALT_INDEX: ${PHONEPE_SALT_INDEX}
+      PHONEPE_ENVIRONMENT: ${PHONEPE_ENVIRONMENT}
+      FRONTEND_URL: ${FRONTEND_URL}
+    depends_on:
+      - mongodb
+    volumes:
+      - ./server/public:/app/public
+    networks:
+      - champions-arena-network
+
+  # Web Frontend
+  web:
+    build: 
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_FRONTEND_URL: ${VITE_FRONTEND_URL}
+    container_name: champions-arena-web-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - server
+    networks:
+      - champions-arena-network
+
+  # Reverse Proxy (Nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: champions-arena-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - web
+      - server
+    networks:
+      - champions-arena-network
+
+networks:
+  champions-arena-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

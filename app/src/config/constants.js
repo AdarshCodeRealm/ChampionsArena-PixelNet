@@ -20,13 +20,13 @@ const CURRENT_ENV = ENV.DEVELOPMENT;
 // Base URLs for different environments
 const BASE_URLS = {
   // [ENV.DEVELOPMENT]: 'http://192.168.175.119:8000',
-  [ENV.DEVELOPMENT]: 'http://192.168.12.119:8000',
+  [ENV.DEVELOPMENT]: 'http://192.168.213.119:8000',
   [ENV.STAGING]: 'http://staging-api.championsarena.com',
   [ENV.PRODUCTION]: 'https://api.championsarena.com'
 };
 
 // API version
-const API_VERSION = 'v1';
+const API_VERSION = 'v1'; 
 
 // Construct the full API URL based on environment
 export const API_URL = `${BASE_URLS[CURRENT_ENV]}/api/${API_VERSION}`;

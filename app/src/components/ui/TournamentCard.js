@@ -3,6 +3,47 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { tournamentStyles } from '../../styles/globalStyles';
 
+// Utility functions for date formatting
+const formatDate = (dateString) => {
+  if (!dateString) return 'TBD';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'TBD';
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'TBD';
+  }
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return 'TBD';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'TBD';
+    
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return 'TBD';
+  }
+};
+
 const TournamentCard = ({ tournament, onPress }) => {
   // Define better colors for status indicators
   const statusColors = {
@@ -20,6 +61,10 @@ const TournamentCard = ({ tournament, onPress }) => {
   const tournamentGame = tournament?.game || tournament?.gameType || 'Game';
   const tournamentPrize = tournament?.prize || tournament?.prizePool || '0';
   const tournamentDate = tournament?.date || tournament?.startDate || 'TBD';
+  
+  // Format the date and time properly
+  const formattedDate = formatDate(tournamentDate);
+  const formattedTime = formatTime(tournamentDate);
   
   // Handle organizer - it can be an object or a string
   const tournamentOrganizer = tournament?.organizerName || 
@@ -92,7 +137,7 @@ const TournamentCard = ({ tournament, onPress }) => {
         <View style={[tournamentStyles.detailItem, { flex: 2 }]}>
           <Ionicons name="calendar-outline" size={16} color="#0d84c3" />
           <Text style={tournamentStyles.detailText}>
-            {tournamentDate} • 16:00 
+            {formattedDate} • {formattedTime}
           </Text>
         </View>
         <View style={tournamentStyles.detailItem}>
