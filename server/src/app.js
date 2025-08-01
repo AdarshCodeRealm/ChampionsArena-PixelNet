@@ -7,11 +7,7 @@ dotenv.config({ path: ".env" })
 const app = express()
 app.use(
   Cors({
-    origin: [
-      "http://localhost:8000",
-      "http://localhost:3000",
-      "http://localhost:5173",
-    ],
+    origin: true,
     credentials: true,
   })
 )
